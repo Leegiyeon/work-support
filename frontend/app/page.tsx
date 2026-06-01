@@ -115,8 +115,8 @@ export default function HomePage() {
           <h1>업무 현황</h1>
         </div>
         <nav className="hero-actions" aria-label="주요 이동">
-          <Link className="primary-link" href="/projects">프로젝트</Link>
-          <Link className="secondary-button" href="/reports">리포트</Link>
+          <Link className="primary-link" href="/projects">프로젝트 보기</Link>
+          <Link className="secondary-button" href="/reports">리포트 생성</Link>
         </nav>
       </header>
 

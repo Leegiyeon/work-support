@@ -100,7 +100,7 @@ export default function WeeklyReportPage() {
       <section className="panel report-controls" aria-label="리포트 기간 선택">
         <label>시작일<input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} /></label>
         <label>종료일<input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} /></label>
-        <button type="button" onClick={handleGenerateReport} disabled={isLoading}>{isLoading ? "생성 중" : "생성"}</button>
+        <button type="button" onClick={handleGenerateReport} disabled={isLoading}>{isLoading ? "생성 중" : "리포트 생성"}</button>
       </section>
 
       {errorMessage ? <div className="alert error">{errorMessage}</div> : null}
