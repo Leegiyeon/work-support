@@ -1,0 +1,13 @@
+.env
+.env.*
+!.env.example
+.venv
+__pycache__
+.pytest_cache
+.mypy_cache
+.ruff_cache
+*.pyc
+*.pyo
+*.egg-info
+coverage
+.DS_Store

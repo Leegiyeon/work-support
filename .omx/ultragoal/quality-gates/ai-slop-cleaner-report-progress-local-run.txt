@@ -1,0 +1,36 @@
+AI SLOP CLEANUP REPORT
+======================
+
+Scope: work-support progress-management and local-run readiness changes: README.md, .env.example, docker-compose.yml, backend/app, backend/tests, frontend/app, infrastructure/postgres/init/002_work_support_schema.sql.
+Behavior Lock: backend pytest -q passed (19 passed, 1 non-blocking StarletteDeprecationWarning); frontend lint/typecheck/build passed; Docker Compose full-stack smoke previously confirmed db/backend/frontend and frontend /api/projects -> backend connection.
+Cleanup Plan: keep the pass bounded to local-MVP readiness and progress-management scaffold; remove small boundary hazards without adding features; preserve exclusions for upload, AI, RAG, career generation, deployment, and n8n.
+Fallback Findings: grep fallback-like inventory found no quick hack/temporary fallback/swallowed/silent-default markers in scoped files.
+UI/Design Findings: Korean UI copy remains normal body size through existing CSS; no new visual complexity introduced in this cleanup pass.
+
+Passes Completed:
+- Fallback-like code resolution gate - no masking fallback slop detected.
+1. Pass 1: Dead code deletion - no dead code deletion needed in scoped files.
+2. Pass 2: Duplicate removal - no risky deduplication needed; proxy helper remains the single frontend API forwarding boundary.
+3. Pass 3: Naming/error handling cleanup - added encodePathSegment helper and used it for dynamic frontend proxy path segments to avoid path-boundary ambiguity.
+4. Pass 4: Test reinforcement - existing backend stabilization/projects tests and frontend typecheck/build cover current contracts; no new feature tests added because this pass only tightened proxy path encoding.
+
+Quality Gates:
+- Regression tests: PASS (backend/.venv/bin/python -m pytest -q)
+- Lint: PASS (npm --prefix frontend run lint)
+- Typecheck: PASS (npm --prefix frontend run typecheck)
+- Tests: PASS (backend pytest; frontend build)
+- Static/security scan: PASS for fallback-like inventory; full secret/compose scans handled in final verification.
+
+Changed Files:
+- frontend/app/api/backend.ts - added encodePathSegment helper near proxy boundary.
+- frontend/app/api/projects/[projectId]/route.ts - encoded projectId before forwarding.
+- frontend/app/api/projects/[projectId]/tasks/route.ts - encoded projectId before forwarding.
+- frontend/app/api/projects/[projectId]/tasks/[taskId]/route.ts - encoded projectId/taskId before forwarding.
+
+Fallback Review:
+- Findings: none from fallback-like search.
+- Classification: N/A.
+- Escalation Status: no escalation needed.
+
+Remaining Risks:
+- The app remains a local personal-MVP with a server-side token proxy, not a public multi-user auth system; Docker binds to 127.0.0.1 and README warns to replace auth before external exposure.

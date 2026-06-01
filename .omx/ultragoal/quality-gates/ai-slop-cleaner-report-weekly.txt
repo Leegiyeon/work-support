@@ -1,0 +1,43 @@
+AI SLOP CLEANUP REPORT
+======================
+
+Scope: weekly report slice files: backend/app/api/reports.py, backend/app/api/security.py, backend/app/core/config.py, backend/app/db/schema.py, backend/app/schemas/reports.py, backend/app/services/weekly_report.py, backend/tests/test_weekly_report.py, frontend/app/page.tsx, frontend/app/reports/page.tsx, frontend/app/globals.css, README.md, docker-compose.yml, env examples, infrastructure/postgres/init/002_work_support_schema.sql
+Behavior Lock: backend pytest covers stored-record Markdown output, API happy path, invalid period rejection, required access headers, wrong owner rejection, and owner-filter query parameters; frontend lint/typecheck/build passed.
+Cleanup Plan: preserve deterministic stored-data-only report behavior; remove unauthenticated all-data exposure; tighten weekly period semantics; normalize date boundaries through REPORT_TIMEZONE; avoid broad auth/login implementation.
+Fallback Findings: none from fallback-like search. ZoneInfoNotFoundError handling is explicit fail-safe to UTC for invalid local configuration and preserves deterministic behavior.
+UI/Design Findings: Korean body text remains >=14px, no gratuitous visual expansion; /reports page uses existing design tokens and Next Link.
+
+Passes Completed:
+- Fallback-like code resolution gate - no masking fallback slop found; explicit DB unavailable error preserved.
+1. Pass 1: Dead code deletion - removed unused item section map.
+2. Pass 2: Duplicate removal - no risky deduplication performed; schema duplication documented as temporary bootstrap tradeoff.
+3. Pass 3: Naming/error handling cleanup - added owner/report token access guard, owner_id filters, 7-day weekly cap, timezone setting.
+4. Pass 4: Test reinforcement - added access-header, wrong-owner, and owner-filter tests.
+
+Quality Gates:
+- Regression tests: PASS (pytest 7 passed, 1 non-blocking StarletteDeprecationWarning)
+- Lint: PASS (npm --prefix frontend run lint)
+- Typecheck: PASS (npm --prefix frontend run typecheck)
+- Tests: PASS (backend pytest, frontend build)
+- Static/security scan: PASS (docker compose config, markdownlint, npm audit, secret pattern scan)
+
+Changed Files:
+- backend/app/api/security.py - personal-MVP report access guard
+- backend/app/api/reports.py - guarded report endpoint with owner dependency
+- backend/app/core/config.py - report owner/token/timezone settings
+- backend/app/db/schema.py, infrastructure/postgres/init/002_work_support_schema.sql - minimum owner-scoped report schema
+- backend/app/schemas/reports.py - 7-day weekly period validation
+- backend/app/services/weekly_report.py - owner-filtered deterministic Markdown report generation
+- backend/tests/test_weekly_report.py - report/access/query behavior coverage
+- frontend/app/reports/page.tsx - period UI, guarded API call, Markdown output, copy button
+- frontend/app/page.tsx, frontend/app/globals.css - entry link and styles
+- README.md, env examples, docker-compose.yml - run/access docs and config
+
+Fallback Review:
+- Findings: no fallback-like masking paths detected.
+- Classification: N/A; DB unavailable path is explicit error, not silent default.
+- Escalation Status: no escalation needed.
+
+Remaining Risks:
+- This is still a local personal-MVP access guard, not a full login system; replace with real auth before multi-user or public deployment.
+- SQL bootstrap and Python bootstrap duplicate DDL; migrate to one migration source before schema grows further.

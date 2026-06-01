@@ -1,0 +1,64 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-work_support}
+      POSTGRES_USER: ${POSTGRES_USER:-work_support}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-work_support_dev_password}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql://work_support:work_support_dev_password@db:5432/work_support}
+      LOCAL_STORAGE_ROOT: ${LOCAL_STORAGE_ROOT:-/app/storage/uploads}
+    ports:
+      - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - ./backend:/app
+      - ./infrastructure/postgres/init:/app/infrastructure/postgres/init:ro
+      - ./storage/uploads:/app/storage/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  frontend:
+    build:
+      context: ./frontend
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000}
+      NEXT_PUBLIC_WORK_SUPPORT_OWNER_ID: ${NEXT_PUBLIC_WORK_SUPPORT_OWNER_ID:-local-owner}
+      WORK_SUPPORT_BACKEND_URL: ${WORK_SUPPORT_BACKEND_URL:-http://backend:8000}
+      WORK_SUPPORT_OWNER_ID: ${DEFAULT_OWNER_ID:-local-owner}
+      WORK_SUPPORT_REPORT_TOKEN: ${REPORT_ACCESS_TOKEN:-dev-only-report-token}
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT:-3000}:3000"
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+      - frontend_next:/app/.next
+    depends_on:
+      - backend
+    command: npm run dev -- --hostname 0.0.0.0 --port 3000
+
+volumes:
+  postgres_data:
+  frontend_node_modules:
+  frontend_next:

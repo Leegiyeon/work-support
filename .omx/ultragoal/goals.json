@@ -1,0 +1,156 @@
+{
+  "version": 1,
+  "createdAt": "2026-06-01T05:14:07.050Z",
+  "updatedAt": "2026-06-01T05:14:07.050Z",
+  "briefPath": ".omx/ultragoal/brief.md",
+  "goalsPath": ".omx/ultragoal/goals.json",
+  "ledgerPath": ".omx/ultragoal/ledger.jsonl",
+  "codexGoalMode": "aggregate",
+  "goals": [
+    {
+      "id": "G001",
+      "title": "프로젝트별 경력 자산 화면",
+      "objective": "프로젝트별 경력 자산 화면",
+      "status": "pending",
+      "attempt": 0,
+      "createdAt": "2026-06-01T05:14:07.050Z",
+      "updatedAt": "2026-06-01T05:14:07.050Z"
+    },
+    {
+      "id": "G002",
+      "title": "업무 로그 기반 수행 업무 요약",
+      "objective": "업무 로그 기반 수행 업무 요약",
+      "status": "pending",
+      "attempt": 0,
+      "createdAt": "2026-06-01T05:14:07.050Z",
+      "updatedAt": "2026-06-01T05:14:07.050Z"
+    },
+    {
+      "id": "G003",
+      "title": "개선 성과 기반 성과 요약",
+      "objective": "개선 성과 기반 성과 요약",
+      "status": "pending",
+      "attempt": 0,
+      "createdAt": "2026-06-01T05:14:07.050Z",
+      "updatedAt": "2026-06-01T05:14:07.050Z"
+    },
+    {
+      "id": "G004",
+      "title": "이력서용 문장 생성",
+      "objective": "이력서용 문장 생성",
+      "status": "pending",
+      "attempt": 0,
+      "createdAt": "2026-06-01T05:14:07.050Z",
+      "updatedAt": "2026-06-01T05:14:07.050Z"
+    },
+    {
+      "id": "G005",
+      "title": "경력기술서용 문장 생성",
+      "objective": "경력기술서용 문장 생성",
+      "status": "pending",
+      "attempt": 0,
+      "createdAt": "2026-06-01T05:14:07.050Z",
+      "updatedAt": "2026-06-01T05:14:07.050Z"
+    },
+    {
+      "id": "G006",
+      "title": "포트폴리오용 프로젝트 설명 생성",
+      "objective": "포트폴리오용 프로젝트 설명 생성",
+      "status": "pending",
+      "attempt": 0,
+      "createdAt": "2026-06-01T05:14:07.050Z",
+      "updatedAt": "2026-06-01T05:14:07.050Z"
+    },
+    {
+      "id": "G007-star",
+      "title": "면접 답변용 STAR 구조 생성",
+      "objective": "면접 답변용 STAR 구조 생성",
+      "status": "pending",
+      "attempt": 0,
+      "createdAt": "2026-06-01T05:14:07.050Z",
+      "updatedAt": "2026-06-01T05:14:07.050Z"
+    },
+    {
+      "id": "G008",
+      "title": "생성 결과 저장",
+      "objective": "생성 결과 저장",
+      "status": "pending",
+      "attempt": 0,
+      "createdAt": "2026-06-01T05:14:07.050Z",
+      "updatedAt": "2026-06-01T05:14:07.050Z"
+    },
+    {
+      "id": "G009",
+      "title": "사용자가 직접 수정 가능",
+      "objective": "사용자가 직접 수정 가능",
+      "status": "pending",
+      "attempt": 0,
+      "createdAt": "2026-06-01T05:14:07.050Z",
+      "updatedAt": "2026-06-01T05:14:07.050Z"
+    },
+    {
+      "id": "G010-markdown",
+      "title": "Markdown 복사 기능",
+      "objective": "Markdown 복사 기능",
+      "status": "pending",
+      "attempt": 0,
+      "createdAt": "2026-06-01T05:14:07.050Z",
+      "updatedAt": "2026-06-01T05:14:07.050Z"
+    },
+    {
+      "id": "G011-work-logs-project-outcomes",
+      "title": "실제 work_logs와 project_outcomes를 근거로 사용한다.",
+      "objective": "실제 work_logs와 project_outcomes를 근거로 사용한다.",
+      "status": "pending",
+      "attempt": 0,
+      "createdAt": "2026-06-01T05:14:07.050Z",
+      "updatedAt": "2026-06-01T05:14:07.050Z"
+    },
+    {
+      "id": "G012",
+      "title": "수치가 없으면 임의로 만들지 않는다.",
+      "objective": "수치가 없으면 임의로 만들지 않는다.",
+      "status": "pending",
+      "attempt": 0,
+      "createdAt": "2026-06-01T05:14:07.050Z",
+      "updatedAt": "2026-06-01T05:14:07.050Z"
+    },
+    {
+      "id": "G013",
+      "title": "과장된 표현보다 실제 기여와 개선 내용을 중심으로 작성한다.",
+      "objective": "과장된 표현보다 실제 기여와 개선 내용을 중심으로 작성한다.",
+      "status": "pending",
+      "attempt": 0,
+      "createdAt": "2026-06-01T05:14:07.050Z",
+      "updatedAt": "2026-06-01T05:14:07.050Z"
+    },
+    {
+      "id": "G014-ai-api-ai",
+      "title": "AI API가 아직 연결되지 않았다면, 우선 템플릿 기반 생성으로 구현하고 추후 AI 연동 가능하게 구조화한다.",
+      "objective": "AI API가 아직 연결되지 않았다면, 우선 템플릿 기반 생성으로 구현하고 추후 AI 연동 가능하게 구조화한다.",
+      "status": "pending",
+      "attempt": 0,
+      "createdAt": "2026-06-01T05:14:07.050Z",
+      "updatedAt": "2026-06-01T05:14:07.050Z"
+    },
+    {
+      "id": "G015",
+      "title": "프로젝트별로 이력서에 쓸 수 있는 문장 초안을 확인할 수 있어야 한다.",
+      "objective": "프로젝트별로 이력서에 쓸 수 있는 문장 초안을 확인할 수 있어야 한다.",
+      "status": "pending",
+      "attempt": 0,
+      "createdAt": "2026-06-01T05:14:07.050Z",
+      "updatedAt": "2026-06-01T05:14:07.050Z"
+    },
+    {
+      "id": "G016",
+      "title": "생성된 문장을 수정하고 저장할 수 있어야 한다.",
+      "objective": "생성된 문장을 수정하고 저장할 수 있어야 한다.",
+      "status": "pending",
+      "attempt": 0,
+      "createdAt": "2026-06-01T05:14:07.050Z",
+      "updatedAt": "2026-06-01T05:14:07.050Z"
+    }
+  ],
+  "codexObjective": "Complete the durable ultragoal plan in .omx/ultragoal/goals.json, including later accepted/appended stories, under the original brief constraints; use .omx/ultragoal/ledger.jsonl as the audit trail."
+}

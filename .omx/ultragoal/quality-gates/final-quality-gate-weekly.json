@@ -1,0 +1,37 @@
+{
+  "aiSlopCleaner": {
+    "status": "passed",
+    "evidence": ".omx/ultragoal/quality-gates/ai-slop-cleaner-report-weekly.txt"
+  },
+  "verification": {
+    "status": "passed",
+    "commands": [
+      "npm --prefix frontend run lint",
+      "npm --prefix frontend run typecheck",
+      "npm --prefix frontend run build",
+      "npm --prefix frontend audit --audit-level=moderate",
+      ". backend/.venv/bin/activate && pytest -q backend/tests && python -m compileall -q backend/app backend/tests",
+      "docker compose config",
+      "npx --yes markdownlint-cli2 README.md AGENTS.md",
+      "grep -RInE '(sk-[A-Za-z0-9_-]{20,}|SUPABASE_SERVICE_ROLE|OPENAI_API_KEY=.+|password\\s*=.+|secret\\s*=.+)' --exclude-dir=.omx --exclude-dir=node_modules --exclude-dir=.next --exclude-dir=.venv --exclude-dir=.pytest_cache --exclude-dir=work_support_backend.egg-info . || true"
+    ],
+    "evidence": "Frontend lint/typecheck/build/audit passed; backend pytest 8 passed with one non-blocking StarletteDeprecationWarning and compileall passed; docker compose config passed; markdownlint 0 errors; secret scan returned no real secret matches."
+  },
+  "codeReview": {
+    "recommendation": "APPROVE",
+    "architectStatus": "CLEAR",
+    "evidence": "Re-review after owner/access fixes: code reviewer APPROVE, architect CLEAR.",
+    "independentReview": {
+      "codeReviewer": {
+        "agentRole": "code-reviewer",
+        "agentId": "019e80ae-d668-71a1-a95a-bb6e27854445",
+        "evidence": "APPROVE; blocking issues resolved by report guard, owner filters, 7-day cap, tests."
+      },
+      "architect": {
+        "agentRole": "architect",
+        "agentId": "019e80ae-e857-7da3-b2aa-69c2328a6cbf",
+        "evidence": "CLEAR; no blocking architectural issues, residual watch items documented."
+      }
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{"timestamp":"2026-06-01T02:47:35.703Z","type":"worker_stop_leader_nudge","team":"read-only-review-only-a274bc54","worker":"worker-3","to_worker":"leader-fixed","tmux_target":"%0","source_type":"worker_stop"}
+{"timestamp":"2026-06-01T02:50:46.014Z","type":"auto_nudge_skipped","reason":"unmanaged_session"}
+{"timestamp":"2026-06-01T03:39:16.373Z","type":"auto_nudge_skipped","reason":"unmanaged_session"}
+{"timestamp":"2026-06-01T03:41:30.798Z","type":"auto_nudge_skipped","reason":"unmanaged_session"}
+{"timestamp":"2026-06-01T03:50:53.946Z","type":"auto_nudge_skipped","reason":"unmanaged_session"}
+{"timestamp":"2026-06-01T04:05:39.511Z","type":"auto_nudge_skipped","reason":"unmanaged_session"}
+{"timestamp":"2026-06-01T04:06:50.313Z","type":"auto_nudge_skipped","reason":"unmanaged_session"}
+{"timestamp":"2026-06-01T04:08:44.607Z","type":"auto_nudge_skipped","reason":"unmanaged_session"}
+{"timestamp":"2026-06-01T04:19:55.489Z","type":"auto_nudge_skipped","reason":"unmanaged_session"}
+{"timestamp":"2026-06-01T04:24:43.926Z","type":"auto_nudge_skipped","reason":"unmanaged_session"}
+{"timestamp":"2026-06-01T04:24:45.139Z","type":"auto_nudge_skipped","reason":"unmanaged_session"}
+{"timestamp":"2026-06-01T04:25:57.364Z","type":"auto_nudge_skipped","reason":"unmanaged_session"}
+{"timestamp":"2026-06-01T04:26:00.150Z","type":"auto_nudge_skipped","reason":"unmanaged_session"}
+{"timestamp":"2026-06-01T04:28:55.282Z","type":"auto_nudge_skipped","reason":"unmanaged_session"}
+{"timestamp":"2026-06-01T04:43:56.744Z","type":"auto_nudge_skipped","reason":"unmanaged_session"}
+{"timestamp":"2026-06-01T05:22:09.050Z","type":"auto_nudge_skipped","reason":"unmanaged_session"}
