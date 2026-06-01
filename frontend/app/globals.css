@@ -188,6 +188,10 @@ textarea {
   padding: 20px;
 }
 
+.panel-title-row h2 {
+  line-height: 1.25;
+}
+
 .panel.muted {
   background: var(--surface-muted);
 }
@@ -403,9 +407,8 @@ textarea {
 
 .metric-card {
   display: grid;
-  min-height: 112px;
   align-content: space-between;
-  gap: 12px;
+  min-height: 104px;
   border-radius: 16px;
   padding: 16px;
 }
@@ -608,6 +611,10 @@ textarea {
   vertical-align: middle;
 }
 
+.data-table tbody tr:hover {
+  background: #f8fbff;
+}
+
 .data-table th {
   background: #f8fafc;
   color: var(--muted);
@@ -708,8 +715,9 @@ code {
   gap: 12px;
 }
 
-.stacked-form button[type="submit"] {
-  width: fit-content;
+.stacked-form > button {
+  justify-self: end;
+  min-width: 128px;
 }
 
 .form-grid {
@@ -780,7 +788,12 @@ code {
 }
 
 .form-actions {
-  justify-content: flex-start;
+  justify-content: flex-end;
+  margin-top: 2px;
+}
+
+.compact-actions {
+  justify-content: space-between;
 }
 
 .compact-actions button,
@@ -1480,6 +1493,12 @@ code {
   min-height: 72px;
 }
 
+.project-create-panel .stacked-form > button,
+.task-form-panel .stacked-form > button,
+.report-controls button {
+  min-width: 148px;
+}
+
 .project-table-panel .data-table-wrap {
   margin-top: 12px;
 }
@@ -1519,6 +1538,10 @@ code {
 .board-layout > .panel:first-child {
   position: sticky;
   top: 16px;
+}
+
+.task-form-panel {
+  border-left: 4px solid var(--accent-blue);
 }
 
 .career-copy-details .career-copy-output {
