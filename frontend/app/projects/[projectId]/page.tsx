@@ -13,6 +13,7 @@ import type {
   ProjectTask,
   TaskPriority,
   TaskStatus,
+  OutcomeType,
   WorkLogItem,
   WorkType
 } from "../types";
@@ -57,6 +58,18 @@ type WorkLogForm = {
   blockers: string;
 };
 
+type OutcomeForm = {
+  title: string;
+  outcome_type: OutcomeType;
+  before_state: string;
+  after_state: string;
+  metric_name: string;
+  metric_value: string;
+  metric_unit: string;
+  evidence_work_log_ids: string[];
+  resume_ready: boolean;
+};
+
 const tabs: { id: DetailTab; label: string }[] = [
   { id: "overview", label: "개요" },
   { id: "board", label: "업무 보드" },
@@ -97,6 +110,20 @@ function createInitialWorkLogForm(): WorkLogForm {
     next_actions: "",
     duration_minutes: "0",
     blockers: ""
+  };
+}
+
+function createInitialOutcomeForm(): OutcomeForm {
+  return {
+    title: "",
+    outcome_type: "qualitative",
+    before_state: "",
+    after_state: "",
+    metric_name: "",
+    metric_value: "",
+    metric_unit: "",
+    evidence_work_log_ids: [],
+    resume_ready: false
   };
 }
 
@@ -175,12 +202,15 @@ export default function ProjectDetailPage({ params }: PageProps) {
   const [projectForm, setProjectForm] = useState<ProjectForm>(initialProjectForm);
   const [taskForm, setTaskForm] = useState<TaskForm>(initialTaskForm);
   const [logForm, setLogForm] = useState<WorkLogForm>(() => createInitialWorkLogForm());
+  const [outcomeForm, setOutcomeForm] = useState<OutcomeForm>(() => createInitialOutcomeForm());
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editingLogId, setEditingLogId] = useState<string | null>(null);
+  const [editingOutcomeId, setEditingOutcomeId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSavingProject, setIsSavingProject] = useState(false);
   const [isSavingTask, setIsSavingTask] = useState(false);
   const [isSavingLog, setIsSavingLog] = useState(false);
+  const [isSavingOutcome, setIsSavingOutcome] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
   const groupedTasks = useMemo(() => {
@@ -433,6 +463,87 @@ export default function ProjectDetailPage({ params }: PageProps) {
     await loadProject();
   }
 
+  async function handleSaveOutcome(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!outcomeForm.title.trim()) {
+      setErrorMessage("개선 항목을 입력하세요.");
+      return;
+    }
+    if (outcomeForm.outcome_type === "quantitative" && !outcomeForm.metric_value.trim()) {
+      setErrorMessage("정량 성과는 수치를 입력하세요.");
+      return;
+    }
+
+    const payload = {
+      title: outcomeForm.title.trim(),
+      outcome_type: outcomeForm.outcome_type,
+      before_state: outcomeForm.before_state.trim(),
+      after_state: outcomeForm.after_state.trim(),
+      metric_name: outcomeForm.metric_name.trim(),
+      metric_value: outcomeForm.metric_value.trim() ? outcomeForm.metric_value.trim() : null,
+      metric_unit: outcomeForm.metric_unit.trim(),
+      evidence_work_log_ids: outcomeForm.evidence_work_log_ids,
+      evidence_document_ids: [],
+      resume_ready: outcomeForm.resume_ready
+    };
+
+    setIsSavingOutcome(true);
+    setErrorMessage("");
+    try {
+      const response = await fetch(
+        editingOutcomeId ? `/api/projects/${projectId}/outcomes/${editingOutcomeId}` : `/api/projects/${projectId}/outcomes`,
+        {
+          method: editingOutcomeId ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        }
+      );
+      if (!response.ok) {
+        const detail = await response.json().catch(() => null);
+        throw new Error(parseApiErrorMessage(detail));
+      }
+      setOutcomeForm(createInitialOutcomeForm());
+      setEditingOutcomeId(null);
+      await loadProject();
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "성과를 저장하지 못했습니다.");
+    } finally {
+      setIsSavingOutcome(false);
+    }
+  }
+
+  function startEditOutcome(outcome: ProjectOutcome) {
+    setEditingOutcomeId(outcome.id);
+    setOutcomeForm({
+      title: outcome.title,
+      outcome_type: outcome.outcome_type,
+      before_state: outcome.before_state,
+      after_state: outcome.after_state,
+      metric_name: outcome.metric_name,
+      metric_value: outcome.metric_value ?? "",
+      metric_unit: outcome.metric_unit,
+      evidence_work_log_ids: outcome.evidence_work_log_ids,
+      resume_ready: outcome.resume_ready
+    });
+    setActiveTab("outcomes");
+  }
+
+  async function deleteOutcome(outcome: ProjectOutcome) {
+    if (!window.confirm("성과를 삭제할까요?")) return;
+    setErrorMessage("");
+    const response = await fetch(`/api/projects/${projectId}/outcomes/${outcome.id}`, { method: "DELETE" });
+    if (!response.ok) {
+      const detail = await response.json().catch(() => null);
+      setErrorMessage(parseApiErrorMessage(detail));
+      return;
+    }
+    if (editingOutcomeId === outcome.id) {
+      setEditingOutcomeId(null);
+      setOutcomeForm(createInitialOutcomeForm());
+    }
+    await loadProject();
+  }
+
   return (
     <main className="page-shell project-page project-detail-page">
       <div className="dashboard-topbar compact-topbar">
@@ -541,7 +652,7 @@ export default function ProjectDetailPage({ params }: PageProps) {
 
           {activeTab === "logs" ? <LogPanel deleteLog={deleteLog} editingLogId={editingLogId} isSavingLog={isSavingLog} logForm={logForm} logs={workLogs} projectTitle={project.title} setLogForm={setLogForm} startEditLog={startEditLog} tasks={tasks} onCancel={() => { setEditingLogId(null); setLogForm(createInitialWorkLogForm()); }} onSubmit={handleSaveLog} /> : null}
 
-          {activeTab === "outcomes" ? <OutcomePanel logs={workLogs} outcomes={outcomes} quantitativeOutcomes={dashboard.quantitativeOutcomes} resumeReadyOutcomes={dashboard.resumeReadyOutcomes} /> : null}
+          {activeTab === "outcomes" ? <OutcomePanel deleteOutcome={deleteOutcome} editingOutcomeId={editingOutcomeId} isSavingOutcome={isSavingOutcome} logs={workLogs} outcomeForm={outcomeForm} outcomes={outcomes} quantitativeOutcomes={dashboard.quantitativeOutcomes} resumeReadyOutcomes={dashboard.resumeReadyOutcomes} setOutcomeForm={setOutcomeForm} startEditOutcome={startEditOutcome} onCancel={() => { setEditingOutcomeId(null); setOutcomeForm(createInitialOutcomeForm()); }} onSubmit={handleSaveOutcome} /> : null}
 
           {activeTab === "career" ? <CareerPanel careerAssets={careerAssets} /> : null}
         </>
@@ -860,11 +971,64 @@ function outcomeEvidence(outcome: ProjectOutcome, logs: WorkLogItem[]) {
   }).join(", ");
 }
 
-function OutcomePanel({ logs, outcomes, quantitativeOutcomes, resumeReadyOutcomes }: { logs: WorkLogItem[]; outcomes: ProjectOutcome[]; quantitativeOutcomes: number; resumeReadyOutcomes: number }) {
-  if (outcomes.length === 0) return <section className="panel"><div className="empty-state">성과 없음</div></section>;
+function OutcomePanel({
+  deleteOutcome,
+  editingOutcomeId,
+  isSavingOutcome,
+  logs,
+  outcomeForm,
+  outcomes,
+  quantitativeOutcomes,
+  resumeReadyOutcomes,
+  setOutcomeForm,
+  startEditOutcome,
+  onCancel,
+  onSubmit
+}: {
+  deleteOutcome: (outcome: ProjectOutcome) => Promise<void>;
+  editingOutcomeId: string | null;
+  isSavingOutcome: boolean;
+  logs: WorkLogItem[];
+  outcomeForm: OutcomeForm;
+  outcomes: ProjectOutcome[];
+  quantitativeOutcomes: number;
+  resumeReadyOutcomes: number;
+  setOutcomeForm: (form: OutcomeForm) => void;
+  startEditOutcome: (outcome: ProjectOutcome) => void;
+  onCancel: () => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+}) {
+  const sortedOutcomes = [...outcomes].sort((a, b) => b.updated_at.localeCompare(a.updated_at));
+  const sortedLogs = [...logs].sort((a, b) => b.log_date.localeCompare(a.log_date));
 
   return (
     <section className="outcome-dashboard">
+      <section className="panel log-form-panel outcome-form-panel">
+        <div className="panel-title-row"><h2>{editingOutcomeId ? "성과 수정" : "성과 추가"}</h2>{editingOutcomeId ? <button className="secondary-button" type="button" onClick={onCancel}>취소</button> : <span className="meta-pill">필수: 개선 항목</span>}</div>
+        <form className="stacked-form compact-form" onSubmit={onSubmit}>
+          <div className="form-grid three-columns">
+            <label>유형<select value={outcomeForm.outcome_type} onChange={(event) => setOutcomeForm({ ...outcomeForm, outcome_type: event.target.value as OutcomeType, metric_value: event.target.value === "qualitative" ? "" : outcomeForm.metric_value })}>{Object.entries(outcomeTypeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+            <label>측정 지표<input placeholder="예: 처리 시간" value={outcomeForm.metric_name} onChange={(event) => setOutcomeForm({ ...outcomeForm, metric_name: event.target.value })} /></label>
+            <label>이력서 반영<select value={outcomeForm.resume_ready ? "yes" : "no"} onChange={(event) => setOutcomeForm({ ...outcomeForm, resume_ready: event.target.value === "yes" })}><option value="no">보류</option><option value="yes">가능</option></select></label>
+          </div>
+          <div className="form-grid three-columns">
+            <label>개선 항목<input placeholder="예: 주간 현황 취합 자동화" value={outcomeForm.title} onChange={(event) => setOutcomeForm({ ...outcomeForm, title: event.target.value })} /></label>
+            <label>수치<input disabled={outcomeForm.outcome_type === "qualitative"} inputMode="decimal" placeholder={outcomeForm.outcome_type === "quantitative" ? "사용자 확정값" : "정성 성과"} value={outcomeForm.metric_value} onChange={(event) => setOutcomeForm({ ...outcomeForm, metric_value: event.target.value })} /></label>
+            <label>단위<input placeholder="예: 분, 건, %" value={outcomeForm.metric_unit} onChange={(event) => setOutcomeForm({ ...outcomeForm, metric_unit: event.target.value })} /></label>
+          </div>
+          <div className="form-grid two-columns">
+            <label>개선 전<textarea placeholder="Before" value={outcomeForm.before_state} onChange={(event) => setOutcomeForm({ ...outcomeForm, before_state: event.target.value })} /></label>
+            <label>개선 후<textarea placeholder="After" value={outcomeForm.after_state} onChange={(event) => setOutcomeForm({ ...outcomeForm, after_state: event.target.value })} /></label>
+          </div>
+          <label>근거 로그
+            <select multiple value={outcomeForm.evidence_work_log_ids} onChange={(event) => setOutcomeForm({ ...outcomeForm, evidence_work_log_ids: Array.from(event.target.selectedOptions, (option) => option.value) })}>
+              {sortedLogs.map((log) => <option key={log.id} value={log.id}>{log.log_date} · {workTypeLabels[log.work_type]} · {log.title}</option>)}
+            </select>
+          </label>
+          <div className="form-actions"><button type="submit" disabled={isSavingOutcome}>{isSavingOutcome ? "저장 중" : editingOutcomeId ? "수정 저장" : "성과 추가"}</button></div>
+        </form>
+      </section>
+
       <section className="summary-grid inline outcome-metrics" aria-label="성과 지표">
         <div className="metric-card"><span>전체</span><strong>{outcomes.length}</strong></div>
         <div className="metric-card"><span>정량</span><strong>{quantitativeOutcomes}</strong></div>
@@ -873,7 +1037,8 @@ function OutcomePanel({ logs, outcomes, quantitativeOutcomes, resumeReadyOutcome
       </section>
 
       <section className="outcome-card-grid">
-        {outcomes.map((outcome) => (
+        {sortedOutcomes.length === 0 ? <div className="empty-state">성과 없음</div> : null}
+        {sortedOutcomes.map((outcome) => (
           <article className="candidate-card outcome-card" key={outcome.id}>
             <div className="panel-title-row"><strong>{outcome.title}</strong>{outcome.resume_ready ? <span className="meta-pill priority-medium">이력서 가능</span> : <span className="meta-pill">보류</span>}</div>
             <div className="outcome-facts">
@@ -884,6 +1049,7 @@ function OutcomePanel({ logs, outcomes, quantitativeOutcomes, resumeReadyOutcome
               <div><span>단위</span><b>{outcome.metric_unit || "-"}</b></div>
               <div><span>근거 로그</span><b>{outcomeEvidence(outcome, logs)}</b></div>
             </div>
+            <div className="form-actions compact-actions"><button className="secondary-button" type="button" onClick={() => startEditOutcome(outcome)}>수정</button><button className="danger-button" type="button" onClick={() => void deleteOutcome(outcome)}>삭제</button></div>
           </article>
         ))}
       </section>
@@ -892,8 +1058,8 @@ function OutcomePanel({ logs, outcomes, quantitativeOutcomes, resumeReadyOutcome
         <div className="panel-title-row"><h2>성과 표</h2><span className="count-badge">{outcomes.length}개</span></div>
         <div className="data-table-wrap">
           <table className="data-table dense-task-table">
-            <thead><tr><th>개선 항목</th><th>유형</th><th>개선 전</th><th>개선 후</th><th>측정 지표</th><th>수치</th><th>단위</th><th>근거 로그</th><th>이력서</th></tr></thead>
-            <tbody>{outcomes.map((outcome) => <tr key={outcome.id}><td>{outcome.title}</td><td>{outcomeTypeLabels[outcome.outcome_type]}</td><td className="truncate-cell">{outcome.before_state || "-"}</td><td className="truncate-cell">{outcome.after_state || "-"}</td><td>{outcome.metric_name || "-"}</td><td>{outcome.metric_value ?? "-"}</td><td>{outcome.metric_unit || "-"}</td><td>{outcomeEvidence(outcome, logs)}</td><td>{outcome.resume_ready ? <span className="meta-pill priority-medium">가능</span> : <span className="meta-pill">보류</span>}</td></tr>)}</tbody>
+            <thead><tr><th>개선 항목</th><th>유형</th><th>개선 전</th><th>개선 후</th><th>측정 지표</th><th>수치</th><th>단위</th><th>근거 로그</th><th>이력서</th><th>관리</th></tr></thead>
+            <tbody>{sortedOutcomes.length === 0 ? <tr><td colSpan={10}>성과 없음</td></tr> : sortedOutcomes.map((outcome) => <tr key={outcome.id}><td>{outcome.title}</td><td>{outcomeTypeLabels[outcome.outcome_type]}</td><td className="truncate-cell">{outcome.before_state || "-"}</td><td className="truncate-cell">{outcome.after_state || "-"}</td><td>{outcome.metric_name || "-"}</td><td>{outcome.metric_value ?? "-"}</td><td>{outcome.metric_unit || "-"}</td><td>{outcomeEvidence(outcome, logs)}</td><td>{outcome.resume_ready ? <span className="meta-pill priority-medium">가능</span> : <span className="meta-pill">보류</span>}</td><td><div className="table-actions"><button className="table-link-button" type="button" onClick={() => startEditOutcome(outcome)}>수정</button><button className="table-link-button danger-link" type="button" onClick={() => void deleteOutcome(outcome)}>삭제</button></div></td></tr>)}</tbody>
           </table>
         </div>
       </section>

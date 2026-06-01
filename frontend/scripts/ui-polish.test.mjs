@@ -31,6 +31,8 @@ test("create and edit flows use explicit action labels", () => {
   assert.match(detailPage, /업무 추가/);
   assert.match(detailPage, /로그 추가/);
   assert.match(detailPage, /로그 수정/);
+  assert.match(detailPage, /성과 추가/);
+  assert.match(detailPage, /성과 수정/);
   assert.match(detailPage, /수정 저장/);
   assert.match(reportsPage, /리포트 생성/);
 });
@@ -44,6 +46,18 @@ test("project logs tab exposes editable work-log evidence fields", () => {
   assert.match(detailPage, /deleteLog/);
   assert.match(detailPage, /\/api\/work-logs\/\$\{editingLogId\}/);
   assert.match(detailPage, /\/api\/work-logs\/\$\{log\.id\}/);
+});
+
+test("project outcomes tab exposes editable evidence-based outcome fields", () => {
+  for (const label of ["개선 항목", "개선 전", "개선 후", "측정 지표", "근거 로그", "이력서 반영"]) {
+    assert.match(detailPage, new RegExp(label));
+  }
+  assert.match(detailPage, /handleSaveOutcome/);
+  assert.match(detailPage, /startEditOutcome/);
+  assert.match(detailPage, /deleteOutcome/);
+  assert.match(detailPage, /\/api\/projects\/\$\{projectId\}\/outcomes\/\$\{editingOutcomeId\}/);
+  assert.match(detailPage, /\/api\/projects\/\$\{projectId\}\/outcomes\/\$\{outcome\.id\}/);
+  assert.match(detailPage, /outcome_type === "quantitative" && !outcomeForm\.metric_value\.trim\(\)/);
 });
 
 test("UI polish styles preserve accessible alignment and focus affordances", () => {
