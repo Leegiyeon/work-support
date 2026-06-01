@@ -109,6 +109,7 @@ export default function ProjectsPage() {
           <Link className="text-link" href="/">← 대시보드</Link>
           <span className="section-kicker">Projects</span>
           <h1>프로젝트</h1>
+          <p className="page-subtitle">새 프로젝트를 만들고 진척, 역할, 잔여 업무를 정리합니다.</p>
         </div>
         <div className="task-meta">
           <span className="meta-pill status-navy">진행 {dashboard.activeProjects.length}</span>
@@ -129,6 +130,7 @@ export default function ProjectsPage() {
       <section className="project-management-grid">
         <section className="panel project-create-panel">
           <div className="panel-title-row"><h2>프로젝트 생성</h2></div>
+          <p className="panel-subtitle">프로젝트명만 필수입니다. 역할과 상태는 나중에 수정할 수 있습니다.</p>
           <form className="stacked-form compact-form" onSubmit={handleCreateProject}>
             <label>프로젝트명<input placeholder="예: 고객 포털 리뉴얼" value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} /></label>
             <label>설명<textarea placeholder="목표, 범위, 주요 산출물을 짧게 입력" value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} /></label>
@@ -139,7 +141,7 @@ export default function ProjectsPage() {
         </section>
 
         <section className="panel project-table-panel">
-          <div className="panel-title-row"><h2>프로젝트 목록</h2><span className="count-badge">{projects.length}개</span></div>
+          <div className="panel-title-row"><h2>프로젝트 목록</h2><span className="count-badge">{projects.length}</span></div>
           {isLoading ? <div className="empty-state">로딩 중</div> : null}
           {!isLoading && projects.length === 0 ? <div className="empty-state">프로젝트 없음</div> : null}
           {projects.length > 0 ? (

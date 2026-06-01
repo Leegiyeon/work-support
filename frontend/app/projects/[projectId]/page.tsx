@@ -339,6 +339,7 @@ export default function ProjectDetailPage({ params }: PageProps) {
           <Link className="text-link" href="/projects">← 프로젝트</Link>
           <span className="section-kicker">Project detail</span>
           <h1>{project?.title ?? "프로젝트"}</h1>
+          <p className="page-subtitle">업무, 로그, 성과, 경력 자산을 탭별로 정리합니다.</p>
         </div>
         {project ? (
           <div className="task-meta">
@@ -452,8 +453,9 @@ function MiniOutcomeList({ outcomes }: { outcomes: ProjectOutcome[] }) {
 
 function TaskFormPanel({ editingTaskId, isSavingTask, taskForm, setTaskForm, onSubmit, onCancel }: { editingTaskId: string | null; isSavingTask: boolean; taskForm: TaskForm; setTaskForm: (form: TaskForm) => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void; onCancel: () => void }) {
   return (
-    <section className="panel">
-      <div className="panel-title-row"><h2>{editingTaskId ? "업무 수정" : "업무 추가"}</h2>{editingTaskId ? <button className="secondary-button" type="button" onClick={onCancel}>취소</button> : <span className="meta-pill">필수: 업무명</span>}</div>
+    <section className="panel task-form-panel">
+      <div className="panel-title-row"><h2>{editingTaskId ? "업무 수정" : "업무 추가"}</h2>{editingTaskId ? <button className="secondary-button" type="button" onClick={onCancel}>취소</button> : null}</div>
+      <p className="panel-subtitle">업무명만 필수입니다. 상태, 우선순위, 마감일은 보드와 목록에 바로 반영됩니다.</p>
       <form className="stacked-form compact-form" onSubmit={onSubmit}>
         <div className="form-grid three-columns">
           <label>업무명<input placeholder="예: API 응답 시간 개선" value={taskForm.title} onChange={(event) => setTaskForm({ ...taskForm, title: event.target.value })} /></label>
@@ -464,7 +466,7 @@ function TaskFormPanel({ editingTaskId, isSavingTask, taskForm, setTaskForm, onS
           <label>마감일<input type="date" value={taskForm.due_date} onChange={(event) => setTaskForm({ ...taskForm, due_date: event.target.value })} /></label>
           <label>설명<input placeholder="작업 범위나 완료 기준" value={taskForm.description} onChange={(event) => setTaskForm({ ...taskForm, description: event.target.value })} /></label>
         </div>
-        <div className="form-actions"><button type="submit" disabled={isSavingTask}>{isSavingTask ? "저장 중" : editingTaskId ? "업무 저장" : "업무 추가"}</button></div>
+        <button type="submit" disabled={isSavingTask}>{isSavingTask ? "저장 중" : editingTaskId ? "수정 저장" : "업무 추가"}</button>
       </form>
     </section>
   );

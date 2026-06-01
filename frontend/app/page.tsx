@@ -113,6 +113,7 @@ export default function HomePage() {
         <div>
           <span className="section-kicker">Dashboard</span>
           <h1>업무 현황</h1>
+          <p className="page-subtitle">프로젝트 진척, 지연 업무, 이번 주 완료를 한눈에 확인하세요.</p>
         </div>
         <nav className="hero-actions" aria-label="주요 이동">
           <Link className="primary-link" href="/projects">프로젝트 보기</Link>
