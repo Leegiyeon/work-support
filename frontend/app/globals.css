@@ -242,6 +242,13 @@ textarea {
   color: var(--accent);
 }
 
+.form-actions .secondary-button,
+.compact-actions .secondary-button {
+  border: 1px solid var(--border);
+  background: #ffffff;
+  color: var(--accent);
+}
+
 .text-link {
   display: inline-flex;
   margin-bottom: 14px;
@@ -756,6 +763,14 @@ code {
 
 .danger-button {
   background: var(--danger);
+  color: #ffffff;
+}
+
+.form-actions .danger-button,
+.compact-actions .danger-button {
+  border: 0;
+  background: var(--danger);
+  color: #ffffff;
 }
 
 .compact-project {
@@ -788,8 +803,7 @@ code {
       "progress"
       "status"
       "delayed"
-      "completed"
-      "candidates";
+      "completed";
   }
 }
 
