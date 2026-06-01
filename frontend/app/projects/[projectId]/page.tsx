@@ -410,7 +410,7 @@ export default function ProjectDetailPage({ params }: PageProps) {
                 <form className="stacked-form compact-form" onSubmit={handleSaveProject}>
                   <div className="form-grid two-columns"><label>프로젝트명<input placeholder="프로젝트 이름" value={projectForm.title} onChange={(event) => setProjectForm({ ...projectForm, title: event.target.value })} /></label><label>상태<select value={projectForm.status} onChange={(event) => setProjectForm({ ...projectForm, status: event.target.value as ProjectStatus })}>{Object.entries(projectStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label></div>
                   <div className="form-grid two-columns"><label>역할<input placeholder="내 역할" value={projectForm.role} onChange={(event) => setProjectForm({ ...projectForm, role: event.target.value })} /></label><label>설명<textarea placeholder="핵심 목표 또는 범위" value={projectForm.description} onChange={(event) => setProjectForm({ ...projectForm, description: event.target.value })} /></label></div>
-                  <div className="form-actions"><button type="submit" disabled={isSavingProject}>{isSavingProject ? "저장 중" : "저장"}</button></div>
+                  <div className="form-actions"><button type="submit" disabled={isSavingProject}>{isSavingProject ? "저장 중" : "수정 저장"}</button></div>
                   <div className="danger-zone"><span>삭제는 되돌릴 수 없습니다.</span><button className="danger-button" type="button" onClick={() => void handleDeleteProject()}>프로젝트 삭제</button></div>
                 </form>
               </details>
@@ -475,7 +475,7 @@ function TaskFormPanel({ editingTaskId, isSavingTask, taskForm, setTaskForm, onS
           <label>마감일<input type="date" value={taskForm.due_date} onChange={(event) => setTaskForm({ ...taskForm, due_date: event.target.value })} /></label>
           <label>설명<textarea placeholder="완료 기준 또는 참고 메모" value={taskForm.description} onChange={(event) => setTaskForm({ ...taskForm, description: event.target.value })} /></label>
         </div>
-        <div className="form-actions"><button type="submit" disabled={isSavingTask}>{isSavingTask ? "저장 중" : editingTaskId ? "업무 저장" : "업무 추가"}</button></div>
+        <div className="form-actions"><button type="submit" disabled={isSavingTask}>{isSavingTask ? "저장 중" : editingTaskId ? "수정 저장" : "업무 추가"}</button></div>
       </form>
     </section>
   );

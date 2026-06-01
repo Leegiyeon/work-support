@@ -129,7 +129,7 @@ export default function ProjectsPage() {
 
       <section className="project-management-grid">
         <section className="panel project-create-panel">
-          <div className="panel-title-row"><h2>새 프로젝트</h2><span className="meta-pill">필수: 프로젝트명</span></div>
+          <div className="panel-title-row"><h2>프로젝트 생성</h2><span className="meta-pill">필수: 프로젝트명</span></div>
           <form className="stacked-form compact-form" onSubmit={handleCreateProject}>
             <label>프로젝트명<input placeholder="예: 고객 포털 개선" value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} /></label>
             <label>설명<textarea placeholder="목표, 범위, 현재 상황" value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} /></label>
