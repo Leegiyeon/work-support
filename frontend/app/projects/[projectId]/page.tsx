@@ -251,6 +251,8 @@ export default function ProjectDetailPage({ params }: PageProps) {
   }
 
   async function handleDeleteProject() {
+    if (!window.confirm("프로젝트와 연결된 업무를 삭제할까요?")) return;
+
     setErrorMessage("");
     const response = await fetch(`/api/projects/${projectId}`, { method: "DELETE" });
     if (!response.ok) {
@@ -363,9 +365,16 @@ export default function ProjectDetailPage({ params }: PageProps) {
             <div className="metric-card"><span>성과</span><strong>{outcomes.length}</strong></div>
           </section>
 
-          <nav className="tab-nav" aria-label="프로젝트 상세 탭">
+          <nav className="tab-nav" aria-label="프로젝트 상세 탭" role="tablist">
             {tabs.map((tab) => (
-              <button className={activeTab === tab.id ? "active" : ""} key={tab.id} type="button" onClick={() => setActiveTab(tab.id)}>
+              <button
+                aria-selected={activeTab === tab.id}
+                className={activeTab === tab.id ? "active" : ""}
+                key={tab.id}
+                role="tab"
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+              >
                 {tab.label}
               </button>
             ))}
@@ -400,8 +409,9 @@ export default function ProjectDetailPage({ params }: PageProps) {
                 <summary>프로젝트 수정</summary>
                 <form className="stacked-form compact-form" onSubmit={handleSaveProject}>
                   <div className="form-grid two-columns"><label>프로젝트명<input placeholder="프로젝트 이름" value={projectForm.title} onChange={(event) => setProjectForm({ ...projectForm, title: event.target.value })} /></label><label>상태<select value={projectForm.status} onChange={(event) => setProjectForm({ ...projectForm, status: event.target.value as ProjectStatus })}>{Object.entries(projectStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label></div>
-                  <div className="form-grid two-columns"><label>역할<input placeholder="내 역할" value={projectForm.role} onChange={(event) => setProjectForm({ ...projectForm, role: event.target.value })} /></label><label>설명<input placeholder="핵심 목표 또는 범위" value={projectForm.description} onChange={(event) => setProjectForm({ ...projectForm, description: event.target.value })} /></label></div>
-                  <div className="form-actions"><button type="submit" disabled={isSavingProject}>{isSavingProject ? "저장 중" : "저장"}</button><button className="danger-button" type="button" onClick={() => void handleDeleteProject()}>삭제</button></div>
+                  <div className="form-grid two-columns"><label>역할<input placeholder="내 역할" value={projectForm.role} onChange={(event) => setProjectForm({ ...projectForm, role: event.target.value })} /></label><label>설명<textarea placeholder="핵심 목표 또는 범위" value={projectForm.description} onChange={(event) => setProjectForm({ ...projectForm, description: event.target.value })} /></label></div>
+                  <div className="form-actions"><button type="submit" disabled={isSavingProject}>{isSavingProject ? "저장 중" : "저장"}</button></div>
+                  <div className="danger-zone"><span>삭제는 되돌릴 수 없습니다.</span><button className="danger-button" type="button" onClick={() => void handleDeleteProject()}>프로젝트 삭제</button></div>
                 </form>
               </details>
             </section>
@@ -464,7 +474,7 @@ function TaskFormPanel({ editingTaskId, isSavingTask, taskForm, setTaskForm, onS
         </div>
         <div className="form-grid two-columns">
           <label>마감일<input type="date" value={taskForm.due_date} onChange={(event) => setTaskForm({ ...taskForm, due_date: event.target.value })} /></label>
-          <label>설명<input placeholder="작업 범위나 완료 기준" value={taskForm.description} onChange={(event) => setTaskForm({ ...taskForm, description: event.target.value })} /></label>
+          <label>설명<textarea placeholder="완료 기준 또는 참고 메모" value={taskForm.description} onChange={(event) => setTaskForm({ ...taskForm, description: event.target.value })} /></label>
         </div>
         <button type="submit" disabled={isSavingTask}>{isSavingTask ? "저장 중" : editingTaskId ? "수정 저장" : "업무 추가"}</button>
       </form>
@@ -722,7 +732,7 @@ function outcomeEvidence(outcome: ProjectOutcome, logs: WorkLogItem[]) {
   if (outcome.evidence_work_log_ids.length === 0) return "-";
   return outcome.evidence_work_log_ids.map((id) => {
     const log = logs.find((item) => item.id === id);
-    return log ? `${log.log_date} ${log.title}` : "연결 로그";
+    return log ? `${log.log_date} ${log.title}` : `연결 로그(${id.slice(0, 8)})`;
   }).join(", ");
 }
 

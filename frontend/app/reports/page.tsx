@@ -49,9 +49,14 @@ export default function WeeklyReportPage() {
   }, [report]);
 
   async function handleGenerateReport() {
-    setIsLoading(true);
     setErrorMessage("");
     setCopyMessage("");
+    if (startDate > endDate) {
+      setErrorMessage("시작일은 종료일보다 늦을 수 없습니다.");
+      return;
+    }
+
+    setIsLoading(true);
 
     try {
       const response = await fetch("/api/reports/weekly", {

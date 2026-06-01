@@ -920,7 +920,12 @@ code {
 
 .tab-nav button.active {
   border-bottom-color: var(--accent-blue);
+  background: #f8fbff;
   color: var(--accent);
+}
+
+.tab-nav button[aria-selected="true"] {
+  box-shadow: inset 0 -1px 0 var(--accent-blue);
 }
 
 .detail-grid {
@@ -944,8 +949,13 @@ code {
 }
 
 .compact-form input,
-.compact-form select {
+.compact-form select,
+.compact-form textarea {
   min-height: 38px;
+}
+
+.compact-form textarea {
+  min-height: 76px;
 }
 
 .board-layout {
@@ -1417,12 +1427,10 @@ code {
 
 .outcome-facts b {
   display: block;
-  overflow: hidden;
   margin-top: 4px;
   color: var(--accent-strong);
   font-size: 13px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .career-result-grid {
@@ -1493,10 +1501,17 @@ code {
   min-height: 72px;
 }
 
-.project-create-panel .stacked-form > button,
-.task-form-panel .stacked-form > button,
-.report-controls button {
-  min-width: 148px;
+.danger-zone {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-top: 1px solid #f1b7b0;
+  color: var(--danger);
+  padding-top: 12px;
+  font-size: 13px;
+  font-weight: 900;
 }
 
 .project-table-panel .data-table-wrap {
