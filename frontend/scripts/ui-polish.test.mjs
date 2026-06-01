@@ -29,8 +29,21 @@ test("create and edit flows use explicit action labels", () => {
   assert.match(projectsPage, /프로젝트 생성/);
   assert.match(projectsPage, /프로젝트 추가/);
   assert.match(detailPage, /업무 추가/);
+  assert.match(detailPage, /로그 추가/);
+  assert.match(detailPage, /로그 수정/);
   assert.match(detailPage, /수정 저장/);
   assert.match(reportsPage, /리포트 생성/);
+});
+
+test("project logs tab exposes editable work-log evidence fields", () => {
+  for (const label of ["결정 사항", "협업자", "다음 액션", "블로커"]) {
+    assert.match(detailPage, new RegExp(label));
+  }
+  assert.match(detailPage, /handleSaveLog/);
+  assert.match(detailPage, /startEditLog/);
+  assert.match(detailPage, /deleteLog/);
+  assert.match(detailPage, /\/api\/work-logs\/\$\{editingLogId\}/);
+  assert.match(detailPage, /\/api\/work-logs\/\$\{log\.id\}/);
 });
 
 test("UI polish styles preserve accessible alignment and focus affordances", () => {
