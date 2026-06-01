@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { AppLogo } from "./components/AppLogo";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -9,7 +10,14 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="ko">
-      <body>{children}</body>
+      <body>
+        <div className="app-frame">
+          <header className="app-header" aria-label="전역 이동">
+            <AppLogo />
+          </header>
+          {children}
+        </div>
+      </body>
     </html>
   );
 }

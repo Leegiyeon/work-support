@@ -5,10 +5,19 @@ import test from "node:test";
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
 const globals = read("app/globals.css");
+const layoutPage = read("app/layout.tsx");
+const logoComponent = read("app/components/AppLogo.tsx");
 const dashboardPage = read("app/page.tsx");
 const projectsPage = read("app/projects/page.tsx");
 const detailPage = read("app/projects/[projectId]/page.tsx");
 const reportsPage = read("app/reports/page.tsx");
+
+test("global logo always links back to dashboard", () => {
+  assert.match(layoutPage, /<AppLogo \/>/);
+  assert.match(logoComponent, /href="\/"/);
+  assert.match(logoComponent, /대시보드로 이동/);
+  assert.match(globals, /\.app-logo/);
+});
 
 test("top-level work surfaces keep concise guidance subtitles", () => {
   for (const [name, source] of Object.entries({ dashboardPage, projectsPage, detailPage, reportsPage })) {

@@ -56,7 +56,7 @@ MacBook에서 가장 단순한 실행 방법입니다. Docker Desktop이 실행 
 
 ```bash
 cp .env.example .env
-docker compose up --build
+docker compose up -d --build
 ```
 
 실행 후 접속 URL:
@@ -71,6 +71,27 @@ docker compose up --build
 
 Docker Compose는 기본적으로 host port를 `127.0.0.1`에만
 바인딩합니다. 개인 로컬 개발 외부로 노출하지 않는 전제입니다.
+`docker-compose.yml`과 `.env.example`은 Compose project name을
+`work-support`로 고정합니다. Docker Desktop에서는 `work-support`
+프로젝트 아래 `db`, `backend`, `frontend` 컨테이너만 관리되도록
+실행하세요.
+프론트엔드 컨테이너는 `app/`, `public/`, 설정 파일만 bind mount하고
+`.next`, `node_modules`, `next-env.d.ts` 같은 생성물은 컨테이너/볼륨
+안에서만 다루도록 구성했습니다.
+
+현재 상태 확인:
+
+```bash
+docker compose ps
+docker ps --filter label=com.docker.compose.project=work-support
+```
+
+중지/재시작:
+
+```bash
+docker compose down
+docker compose up -d --build
+```
 
 ## DB만 Docker로 실행하고 앱은 로컬에서 실행
 
@@ -414,10 +435,23 @@ docker compose up --build
 
 ### 3000 또는 8000 포트 충돌
 
-루트 `.env`에서 `FRONTEND_PORT`, `BACKEND_PORT`를 바꾸고
-Docker Compose를 다시 실행합니다. 로컬 프로세스로 실행할 때는
-`npm run dev -- --port 3001`, `uvicorn ... --port 8001`처럼
-명령어 port를 직접 바꿉니다.
+Docker Desktop에서 `work-support` 프로젝트 밖의 컨테이너나 로컬
+`node`/`uvicorn` 프로세스가 같은 포트를 잡고 있으면 하나로 통일합니다.
+
+```bash
+# 3000 포트를 잡고 있는 로컬 프로세스 확인
+lsof -nP -iTCP:3000 -sTCP:LISTEN
+
+# work-support Compose 컨테이너만 다시 실행
+docker compose down
+docker compose up -d --build
+docker compose ps
+```
+
+다른 로컬 프론트엔드를 동시에 띄워야 할 때만 루트 `.env`에서
+`FRONTEND_PORT`를 바꾸고 Compose를 재실행합니다. 기본 운영은
+`work-support` Compose 프로젝트 하나로 `db`, `backend`, `frontend`를
+함께 관리하는 방식입니다.
 
 ### 프론트에서 API 오류가 표시됨
 
