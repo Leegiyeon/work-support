@@ -92,6 +92,7 @@ export default function WeeklyReportPage() {
       <header className="dashboard-topbar compact-topbar">
         <div>
           <Link className="text-link" href="/">← 대시보드</Link>
+          <span className="section-kicker">Reports</span>
           <h1>주간 리포트</h1>
           <p className="page-subtitle">기간을 선택해 업무 로그와 성과를 Markdown으로 정리합니다.</p>
         </div>
