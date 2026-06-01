@@ -1224,6 +1224,16 @@ code {
   white-space: nowrap;
 }
 
+.table-actions {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.table-link-button.danger-link {
+  color: var(--danger);
+}
+
 .table-progress {
   display: grid;
   grid-template-columns: minmax(80px, 1fr) 36px;
@@ -1387,6 +1397,10 @@ code {
   grid-template-columns: minmax(360px, 0.75fr) minmax(0, 1.25fr);
   gap: 16px;
   align-items: start;
+}
+
+.log-form-panel {
+  grid-column: 1 / -1;
 }
 
 .log-timeline {
