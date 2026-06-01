@@ -473,7 +473,7 @@ function TaskFormPanel({ editingTaskId, isSavingTask, taskForm, setTaskForm, onS
         </div>
         <div className="form-grid two-columns">
           <label>마감일<input type="date" value={taskForm.due_date} onChange={(event) => setTaskForm({ ...taskForm, due_date: event.target.value })} /></label>
-          <label>설명<input placeholder="작업 범위나 완료 기준" value={taskForm.description} onChange={(event) => setTaskForm({ ...taskForm, description: event.target.value })} /></label>
+          <label>설명<textarea placeholder="완료 기준 또는 참고 메모" value={taskForm.description} onChange={(event) => setTaskForm({ ...taskForm, description: event.target.value })} /></label>
         </div>
         <div className="form-actions"><button type="submit" disabled={isSavingTask}>{isSavingTask ? "저장 중" : editingTaskId ? "업무 저장" : "업무 추가"}</button></div>
       </form>
