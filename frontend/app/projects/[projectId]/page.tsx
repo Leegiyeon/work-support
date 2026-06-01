@@ -2,15 +2,32 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, use, useEffect, useMemo, useState } from "react";
+import { FormEvent, use, useCallback, useEffect, useMemo, useState } from "react";
 
 import { parseApiErrorMessage } from "../../reports/api-error";
-import type { ProjectStatus, ProjectSummary, ProjectTask, TaskPriority, TaskStatus } from "../types";
-import { projectStatusLabels, taskPriorityLabels, taskStatusLabels } from "../types";
+import type {
+  CareerAsset,
+  ProjectOutcome,
+  ProjectStatus,
+  ProjectSummary,
+  ProjectTask,
+  TaskPriority,
+  TaskStatus,
+  WorkLogItem
+} from "../types";
+import {
+  outcomeTypeLabels,
+  projectStatusLabels,
+  taskPriorityLabels,
+  taskStatusLabels,
+  workTypeLabels
+} from "../types";
 
 type PageProps = {
   params: Promise<{ projectId: string }>;
 };
+
+type DetailTab = "overview" | "board" | "list" | "calendar" | "wbs" | "logs" | "outcomes" | "career";
 
 type TaskForm = {
   title: string;
@@ -27,6 +44,20 @@ type ProjectForm = {
   status: ProjectStatus;
 };
 
+const tabs: { id: DetailTab; label: string }[] = [
+  { id: "overview", label: "개요" },
+  { id: "board", label: "업무 보드" },
+  { id: "list", label: "업무 목록" },
+  { id: "calendar", label: "마감 캘린더" },
+  { id: "wbs", label: "WBS 업로드" },
+  { id: "logs", label: "업무 로그" },
+  { id: "outcomes", label: "성과" },
+  { id: "career", label: "경력 자산" }
+];
+
+const taskStatusOrder: TaskStatus[] = ["planned", "in_progress", "done", "on_hold"];
+const priorityOrder: Record<TaskPriority, number> = { high: 1, medium: 2, low: 3 };
+
 const initialTaskForm: TaskForm = {
   title: "",
   description: "",
@@ -42,11 +73,78 @@ const initialProjectForm: ProjectForm = {
   status: "idea"
 };
 
+function isDelayed(task: ProjectTask) {
+  if (!task.due_date || task.status === "done") return false;
+  return new Date(`${task.due_date}T23:59:59`) < new Date();
+}
+
+function taskProgress(task: ProjectTask) {
+  if (task.status === "done") return 100;
+  if (task.status === "in_progress") return 50;
+  if (task.status === "on_hold") return 10;
+  return 0;
+}
+
+
+function formatDateKey(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function parseDueDate(date: string) {
+  return new Date(`${date}T00:00:00`);
+}
+
+function getWeekRange() {
+  const start = new Date();
+  const day = start.getDay();
+  const daysFromMonday = day === 0 ? 6 : day - 1;
+  start.setHours(0, 0, 0, 0);
+  start.setDate(start.getDate() - daysFromMonday);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  end.setHours(23, 59, 59, 999);
+  return { start, end };
+}
+
+function getMonthCells(baseDate = new Date()) {
+  const year = baseDate.getFullYear();
+  const month = baseDate.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  const leadingBlanks = firstDay.getDay();
+  const cells: (Date | null)[] = Array.from({ length: leadingBlanks }, () => null);
+
+  for (let day = 1; day <= lastDay.getDate(); day += 1) {
+    cells.push(new Date(year, month, day));
+  }
+  while (cells.length % 7 !== 0) {
+    cells.push(null);
+  }
+  return cells;
+}
+
+function sortTasks(tasks: ProjectTask[]) {
+  return [...tasks].sort((a, b) => {
+    const statusDiff = taskStatusOrder.indexOf(a.status) - taskStatusOrder.indexOf(b.status);
+    if (statusDiff !== 0) return statusDiff;
+    const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority];
+    if (priorityDiff !== 0) return priorityDiff;
+    return (a.due_date ?? "9999-12-31").localeCompare(b.due_date ?? "9999-12-31");
+  });
+}
+
 export default function ProjectDetailPage({ params }: PageProps) {
   const { projectId } = use(params);
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState<DetailTab>("overview");
   const [project, setProject] = useState<ProjectSummary | null>(null);
   const [tasks, setTasks] = useState<ProjectTask[]>([]);
+  const [workLogs, setWorkLogs] = useState<WorkLogItem[]>([]);
+  const [outcomes, setOutcomes] = useState<ProjectOutcome[]>([]);
+  const [careerAssets, setCareerAssets] = useState<CareerAsset[]>([]);
   const [projectForm, setProjectForm] = useState<ProjectForm>(initialProjectForm);
   const [taskForm, setTaskForm] = useState<TaskForm>(initialTaskForm);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
@@ -56,20 +154,40 @@ export default function ProjectDetailPage({ params }: PageProps) {
   const [errorMessage, setErrorMessage] = useState("");
 
   const groupedTasks = useMemo(() => {
-    return (Object.keys(taskStatusLabels) as TaskStatus[]).map((status) => ({
+    return taskStatusOrder.map((status) => ({
       status,
       label: taskStatusLabels[status],
-      items: tasks.filter((task) => task.status === status)
+      items: sortTasks(tasks.filter((task) => task.status === status))
     }));
   }, [tasks]);
 
-  async function loadProject() {
+  const dashboard = useMemo(() => {
+    const delayedTasks = tasks.filter(isDelayed);
+    const sortedTasks = sortTasks(tasks);
+    const dueTasks = sortedTasks.filter((task) => task.due_date);
+    const { start: weekStart, end: weekEnd } = getWeekRange();
+    const thisWeekDueTasks = dueTasks.filter((task) => {
+      if (!task.due_date) return false;
+      const dueDate = parseDueDate(task.due_date);
+      return dueDate >= weekStart && dueDate <= weekEnd;
+    });
+    const recentLogs = [...workLogs].sort((a, b) => b.log_date.localeCompare(a.log_date)).slice(0, 5);
+    const latestOutcomes = [...outcomes].sort((a, b) => b.updated_at.localeCompare(a.updated_at)).slice(0, 5);
+    const quantitativeOutcomes = outcomes.filter((outcome) => outcome.outcome_type === "quantitative").length;
+    const resumeReadyOutcomes = outcomes.filter((outcome) => outcome.resume_ready).length;
+    return { delayedTasks, dueTasks, latestOutcomes, quantitativeOutcomes, recentLogs, resumeReadyOutcomes, sortedTasks, thisWeekDueTasks };
+  }, [outcomes, tasks, workLogs]);
+
+  const loadProject = useCallback(async () => {
     setIsLoading(true);
     setErrorMessage("");
     try {
-      const [projectResponse, tasksResponse] = await Promise.all([
+      const [projectResponse, tasksResponse, logsResponse, outcomesResponse, careerResponse] = await Promise.all([
         fetch(`/api/projects/${projectId}`, { cache: "no-store" }),
-        fetch(`/api/projects/${projectId}/tasks`, { cache: "no-store" })
+        fetch(`/api/projects/${projectId}/tasks`, { cache: "no-store" }),
+        fetch(`/api/work-logs?project_id=${projectId}`, { cache: "no-store" }),
+        fetch(`/api/projects/${projectId}/outcomes`, { cache: "no-store" }),
+        fetch(`/api/projects/${projectId}/career-assets`, { cache: "no-store" })
       ]);
       if (!projectResponse.ok) {
         const detail = await projectResponse.json().catch(() => null);
@@ -88,58 +206,22 @@ export default function ProjectDetailPage({ params }: PageProps) {
         status: nextProject.status
       });
       setTasks((await tasksResponse.json()) as ProjectTask[]);
+      setWorkLogs(logsResponse.ok ? ((await logsResponse.json()) as WorkLogItem[]) : []);
+      setOutcomes(outcomesResponse.ok ? ((await outcomesResponse.json()) as ProjectOutcome[]) : []);
+      setCareerAssets(careerResponse.ok ? ((await careerResponse.json()) as CareerAsset[]) : []);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "프로젝트 상세를 불러오지 못했습니다.");
     } finally {
       setIsLoading(false);
     }
-  }
+  }, [projectId]);
 
   useEffect(() => {
-    let isMounted = true;
-
-    Promise.all([
-      fetch(`/api/projects/${projectId}`, { cache: "no-store" }),
-      fetch(`/api/projects/${projectId}/tasks`, { cache: "no-store" })
-    ])
-      .then(async ([projectResponse, tasksResponse]) => {
-        if (!projectResponse.ok) {
-          const detail = await projectResponse.json().catch(() => null);
-          throw new Error(parseApiErrorMessage(detail));
-        }
-        if (!tasksResponse.ok) {
-          const detail = await tasksResponse.json().catch(() => null);
-          throw new Error(parseApiErrorMessage(detail));
-        }
-        return Promise.all([projectResponse.json() as Promise<ProjectSummary>, tasksResponse.json() as Promise<ProjectTask[]>]);
-      })
-      .then(([nextProject, nextTasks]) => {
-        if (isMounted) {
-          setProject(nextProject);
-          setProjectForm({
-            title: nextProject.title,
-            description: nextProject.description,
-            role: nextProject.role,
-            status: nextProject.status
-          });
-          setTasks(nextTasks);
-        }
-      })
-      .catch((error: unknown) => {
-        if (isMounted) {
-          setErrorMessage(error instanceof Error ? error.message : "프로젝트 상세를 불러오지 못했습니다.");
-        }
-      })
-      .finally(() => {
-        if (isMounted) {
-          setIsLoading(false);
-        }
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [projectId]);
+    const timer = window.setTimeout(() => {
+      void loadProject();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [loadProject]);
 
   async function handleSaveProject(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -186,11 +268,7 @@ export default function ProjectDetailPage({ params }: PageProps) {
       return;
     }
 
-    const payload = {
-      ...taskForm,
-      due_date: taskForm.due_date || null
-    };
-
+    const payload = { ...taskForm, due_date: taskForm.due_date || null };
     setIsSavingTask(true);
     setErrorMessage("");
     try {
@@ -225,6 +303,7 @@ export default function ProjectDetailPage({ params }: PageProps) {
       priority: task.priority,
       due_date: task.due_date ?? ""
     });
+    setActiveTab("board");
   }
 
   async function updateStatus(task: ProjectTask, status: TaskStatus) {
@@ -254,118 +333,477 @@ export default function ProjectDetailPage({ params }: PageProps) {
   }
 
   return (
-    <main className="page-shell project-page">
-      <Link className="text-link" href="/projects">← 프로젝트 목록</Link>
+    <main className="page-shell project-page project-detail-page">
+      <div className="dashboard-topbar compact-topbar">
+        <div>
+          <Link className="text-link" href="/projects">← 프로젝트</Link>
+          <h1>{project?.title ?? "프로젝트"}</h1>
+        </div>
+        {project ? (
+          <div className="task-meta">
+            <span className="meta-pill status-navy">{projectStatusLabels[project.status]}</span>
+            <span className="meta-pill">진척 {project.progress_percent}%</span>
+            <span className="meta-pill">잔여 {project.remaining_tasks}</span>
+            <span className="meta-pill priority-high">지연 {dashboard.delayedTasks.length}</span>
+          </div>
+        ) : null}
+      </div>
 
-      {isLoading ? <section className="panel muted">프로젝트를 불러오는 중입니다.</section> : null}
+      {isLoading ? <section className="panel muted">로딩 중</section> : null}
       {errorMessage ? <div className="alert error">{errorMessage}</div> : null}
 
       {project ? (
         <>
-          <section className="hero-card compact">
-            <p className="eyebrow">{projectStatusLabels[project.status]}</p>
-            <h1>{project.title}</h1>
-            <p className="hero-description">{project.description || "설명 없음"}</p>
-            <div className="summary-grid inline">
-              <div className="metric-card"><span>진척도</span><strong>{project.progress_percent}%</strong></div>
-              <div className="metric-card"><span>잔여 업무</span><strong>{project.remaining_tasks}</strong></div>
-              <div className="metric-card"><span>완료/전체</span><strong>{project.completed_tasks}/{project.total_tasks}</strong></div>
-            </div>
+          <section className="summary-grid dashboard-metrics" aria-label="프로젝트 지표">
+            <div className="metric-card"><span>진척도</span><strong>{project.progress_percent}%</strong></div>
+            <div className="metric-card"><span>잔여 업무</span><strong>{project.remaining_tasks}</strong></div>
+            <div className="metric-card"><span>로그</span><strong>{workLogs.length}</strong></div>
+            <div className="metric-card"><span>성과</span><strong>{outcomes.length}</strong></div>
           </section>
 
-          <section className="panel">
-            <h2>프로젝트 정보 수정</h2>
-            <form className="stacked-form" onSubmit={handleSaveProject}>
-              <div className="form-grid two-columns">
-                <label>
-                  프로젝트명
-                  <input value={projectForm.title} onChange={(event) => setProjectForm({ ...projectForm, title: event.target.value })} />
-                </label>
-                <label>
-                  상태
-                  <select value={projectForm.status} onChange={(event) => setProjectForm({ ...projectForm, status: event.target.value as ProjectStatus })}>
-                    {Object.entries(projectStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-                  </select>
-                </label>
-              </div>
-              <label>
-                설명
-                <textarea value={projectForm.description} onChange={(event) => setProjectForm({ ...projectForm, description: event.target.value })} placeholder="프로젝트 목적과 범위" />
-              </label>
-              <label>
-                내 역할
-                <input value={projectForm.role} onChange={(event) => setProjectForm({ ...projectForm, role: event.target.value })} placeholder="예: PM, 기획, 자동화 담당" />
-              </label>
-              <div className="form-actions">
-                <button type="submit" disabled={isSavingProject}>{isSavingProject ? "저장 중..." : "프로젝트 저장"}</button>
-                <button className="danger-button" type="button" onClick={() => void handleDeleteProject()}>프로젝트 삭제</button>
-              </div>
-            </form>
-          </section>
-
-          <section className="panel">
-            <h2>{editingTaskId ? "업무 수정" : "업무 추가"}</h2>
-            <form className="stacked-form" onSubmit={handleSaveTask}>
-              <label>
-                업무명
-                <input value={taskForm.title} onChange={(event) => setTaskForm({ ...taskForm, title: event.target.value })} placeholder="예: 요구사항 정리" />
-              </label>
-              <label>
-                설명
-                <textarea value={taskForm.description} onChange={(event) => setTaskForm({ ...taskForm, description: event.target.value })} placeholder="업무 내용, 완료 기준, 참고 사항" />
-              </label>
-              <div className="form-grid three-columns">
-                <label>
-                  상태
-                  <select value={taskForm.status} onChange={(event) => setTaskForm({ ...taskForm, status: event.target.value as TaskStatus })}>
-                    {Object.entries(taskStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-                  </select>
-                </label>
-                <label>
-                  우선순위
-                  <select value={taskForm.priority} onChange={(event) => setTaskForm({ ...taskForm, priority: event.target.value as TaskPriority })}>
-                    {Object.entries(taskPriorityLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-                  </select>
-                </label>
-                <label>
-                  마감일
-                  <input type="date" value={taskForm.due_date} onChange={(event) => setTaskForm({ ...taskForm, due_date: event.target.value })} />
-                </label>
-              </div>
-              <div className="form-actions">
-                <button type="submit" disabled={isSavingTask}>{isSavingTask ? "저장 중..." : editingTaskId ? "수정 저장" : "업무 추가"}</button>
-                {editingTaskId ? <button className="secondary-button" type="button" onClick={() => { setEditingTaskId(null); setTaskForm(initialTaskForm); }}>취소</button> : null}
-              </div>
-            </form>
-          </section>
-
-          <section className="task-board" aria-label="프로젝트별 업무 목록">
-            {groupedTasks.map((group) => (
-              <div className="panel task-column" key={group.status}>
-                <h2>{group.label} <span className="count-badge">{group.items.length}</span></h2>
-                {group.items.length === 0 ? <p className="muted-text">해당 상태의 업무가 없습니다.</p> : null}
-                {group.items.map((task) => (
-                  <article className="task-card" key={task.id}>
-                    <h3>{task.title}</h3>
-                    <p>{task.description || "설명 없음"}</p>
-                    <div className="task-meta">
-                      <span className={`meta-pill priority-${task.priority}`}>우선순위 {taskPriorityLabels[task.priority]}</span>
-                      <span className="meta-pill">마감 {task.due_date ?? "없음"}</span>
-                    </div>
-                    <select value={task.status} onChange={(event) => void updateStatus(task, event.target.value as TaskStatus)} aria-label={`${task.title} 상태 변경`}>
-                      {Object.entries(taskStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-                    </select>
-                    <div className="form-actions compact-actions">
-                      <button className="secondary-button" type="button" onClick={() => startEdit(task)}>수정</button>
-                      <button className="danger-button" type="button" onClick={() => void deleteTask(task)}>삭제</button>
-                    </div>
-                  </article>
-                ))}
-              </div>
+          <nav className="tab-nav" aria-label="프로젝트 상세 탭">
+            {tabs.map((tab) => (
+              <button className={activeTab === tab.id ? "active" : ""} key={tab.id} type="button" onClick={() => setActiveTab(tab.id)}>
+                {tab.label}
+              </button>
             ))}
-          </section>
+          </nav>
+
+          {activeTab === "overview" ? (
+            <section className="overview-dashboard">
+              <section className="panel">
+                <div className="panel-title-row"><h2>진척</h2><span className="count-badge">{projectStatusLabels[project.status]}</span></div>
+                <div className="overview-bars">
+                  <div><span>완료율</span><div className="progress-row-bar"><span style={{ width: `${project.progress_percent}%` }} /></div></div>
+                  {groupedTasks.map((group) => <div className="status-bar-row" key={group.status}><span>{group.label}</span><div className="status-bar-track"><i style={{ width: `${tasks.length ? (group.items.length / tasks.length) * 100 : 0}%` }} /></div><strong>{group.items.length}</strong></div>)}
+                </div>
+              </section>
+              <section className="panel">
+                <div className="panel-title-row"><h2>이번 주 마감</h2><span className="count-badge">{dashboard.thisWeekDueTasks.length}</span></div>
+                <DueTaskList empty="마감 없음" tasks={dashboard.thisWeekDueTasks.slice(0, 5)} />
+              </section>
+              <section className="panel">
+                <div className="panel-title-row"><h2>지연 업무</h2><span className="count-badge danger-count">{dashboard.delayedTasks.length}</span></div>
+                <DueTaskList empty="지연 없음" tasks={dashboard.delayedTasks.slice(0, 5)} />
+              </section>
+              <section className="panel">
+                <div className="panel-title-row"><h2>최근 로그</h2><span className="count-badge">{dashboard.recentLogs.length}</span></div>
+                <MiniLogList logs={dashboard.recentLogs} />
+              </section>
+              <section className="panel">
+                <div className="panel-title-row"><h2>최근 성과</h2><span className="count-badge">{dashboard.latestOutcomes.length}</span></div>
+                <MiniOutcomeList outcomes={dashboard.latestOutcomes} />
+              </section>
+              <details className="panel project-settings-panel">
+                <summary>프로젝트 수정</summary>
+                <form className="stacked-form compact-form" onSubmit={handleSaveProject}>
+                  <div className="form-grid two-columns"><label>프로젝트명<input value={projectForm.title} onChange={(event) => setProjectForm({ ...projectForm, title: event.target.value })} /></label><label>상태<select value={projectForm.status} onChange={(event) => setProjectForm({ ...projectForm, status: event.target.value as ProjectStatus })}>{Object.entries(projectStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label></div>
+                  <div className="form-grid two-columns"><label>역할<input value={projectForm.role} onChange={(event) => setProjectForm({ ...projectForm, role: event.target.value })} /></label><label>설명<input value={projectForm.description} onChange={(event) => setProjectForm({ ...projectForm, description: event.target.value })} /></label></div>
+                  <div className="form-actions"><button type="submit" disabled={isSavingProject}>{isSavingProject ? "저장 중" : "저장"}</button><button className="danger-button" type="button" onClick={() => void handleDeleteProject()}>삭제</button></div>
+                </form>
+              </details>
+            </section>
+          ) : null}
+
+          {activeTab === "board" ? (
+            <section className="board-layout">
+              <TaskFormPanel editingTaskId={editingTaskId} isSavingTask={isSavingTask} taskForm={taskForm} setTaskForm={setTaskForm} onSubmit={handleSaveTask} onCancel={() => { setEditingTaskId(null); setTaskForm(initialTaskForm); }} />
+              <section className="task-board" aria-label="업무 보드">
+                {groupedTasks.map((group) => (
+                  <div className="panel task-column" key={group.status}>
+                    <div className="panel-title-row"><h2>{group.label}</h2><span className="count-badge">{group.items.length}</span></div>
+                    {group.items.length === 0 ? <div className="empty-state">없음</div> : null}
+                    {group.items.map((task) => <TaskCard deleteTask={deleteTask} key={task.id} startEdit={startEdit} task={task} updateStatus={updateStatus} />)}
+                  </div>
+                ))}
+              </section>
+            </section>
+          ) : null}
+
+          {activeTab === "list" ? (
+            <section className="panel"><TaskTable startEdit={startEdit} tasks={dashboard.sortedTasks} updateStatus={updateStatus} /></section>
+          ) : null}
+
+          {activeTab === "calendar" ? <CalendarPanel tasks={tasks} /> : null}
+
+          {activeTab === "wbs" ? <WbsUploadPanel tasks={dashboard.sortedTasks} /> : null}
+
+          {activeTab === "logs" ? <LogPanel logs={workLogs} projectTitle={project.title} tasks={tasks} /> : null}
+
+          {activeTab === "outcomes" ? <OutcomePanel logs={workLogs} outcomes={outcomes} quantitativeOutcomes={dashboard.quantitativeOutcomes} resumeReadyOutcomes={dashboard.resumeReadyOutcomes} /> : null}
+
+          {activeTab === "career" ? <CareerPanel careerAssets={careerAssets} /> : null}
         </>
       ) : null}
     </main>
+  );
+}
+
+function MiniLogList({ logs }: { logs: WorkLogItem[] }) {
+  if (logs.length === 0) return <div className="empty-state">로그 없음</div>;
+  return <div className="compact-list">{logs.map((log) => <div className="dense-list-row" key={log.id}><span>{log.title}</span><small>{workTypeLabels[log.work_type]} · {log.log_date} · {log.duration_minutes}분</small><b>{log.next_actions || "-"}</b></div>)}</div>;
+}
+
+function MiniOutcomeList({ outcomes }: { outcomes: ProjectOutcome[] }) {
+  if (outcomes.length === 0) return <div className="empty-state">성과 없음</div>;
+  return <div className="compact-list">{outcomes.map((outcome) => <div className="dense-list-row" key={outcome.id}><span>{outcome.title}</span><small>{outcomeMetric(outcome)}</small><b>{outcome.resume_ready ? "가능" : "보류"}</b></div>)}</div>;
+}
+
+function TaskFormPanel({ editingTaskId, isSavingTask, taskForm, setTaskForm, onSubmit, onCancel }: { editingTaskId: string | null; isSavingTask: boolean; taskForm: TaskForm; setTaskForm: (form: TaskForm) => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void; onCancel: () => void }) {
+  return (
+    <section className="panel">
+      <div className="panel-title-row"><h2>{editingTaskId ? "업무 수정" : "업무 추가"}</h2>{editingTaskId ? <button className="secondary-button" type="button" onClick={onCancel}>취소</button> : null}</div>
+      <form className="stacked-form compact-form" onSubmit={onSubmit}>
+        <div className="form-grid three-columns">
+          <label>업무명<input value={taskForm.title} onChange={(event) => setTaskForm({ ...taskForm, title: event.target.value })} /></label>
+          <label>상태<select value={taskForm.status} onChange={(event) => setTaskForm({ ...taskForm, status: event.target.value as TaskStatus })}>{Object.entries(taskStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+          <label>우선순위<select value={taskForm.priority} onChange={(event) => setTaskForm({ ...taskForm, priority: event.target.value as TaskPriority })}>{Object.entries(taskPriorityLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+        </div>
+        <div className="form-grid two-columns">
+          <label>마감일<input type="date" value={taskForm.due_date} onChange={(event) => setTaskForm({ ...taskForm, due_date: event.target.value })} /></label>
+          <label>설명<input value={taskForm.description} onChange={(event) => setTaskForm({ ...taskForm, description: event.target.value })} /></label>
+        </div>
+        <button type="submit" disabled={isSavingTask}>{isSavingTask ? "저장 중" : editingTaskId ? "수정" : "추가"}</button>
+      </form>
+    </section>
+  );
+}
+
+function TaskCard({ task, updateStatus, startEdit, deleteTask }: { task: ProjectTask; updateStatus: (task: ProjectTask, status: TaskStatus) => Promise<void>; startEdit: (task: ProjectTask) => void; deleteTask: (task: ProjectTask) => Promise<void> }) {
+  const progress = taskProgress(task);
+
+  return (
+    <article className="task-card jira-task-card">
+      <div className="jira-card-topline">
+        <span className="meta-pill status-navy">{taskStatusLabels[task.status]}</span>
+        <span className={`meta-pill priority-${task.priority}`}>{taskPriorityLabels[task.priority]}</span>
+        {isDelayed(task) ? <span className="meta-pill priority-high">지연</span> : null}
+      </div>
+      <h3>{task.title}</h3>
+      <div className="jira-card-facts">
+        <span className={isDelayed(task) ? "meta-pill priority-high" : "meta-pill"}>{task.due_date ?? "마감 없음"}</span>
+        <span className="meta-pill">진척 {progress}%</span>
+      </div>
+      <div className="mini-progress"><span style={{ width: `${progress}%` }} /></div>
+      <select value={task.status} onChange={(event) => void updateStatus(task, event.target.value as TaskStatus)} aria-label={`${task.title} 상태 변경`}>{Object.entries(taskStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+      <div className="form-actions compact-actions"><button className="secondary-button" type="button" onClick={() => startEdit(task)}>수정</button><button className="danger-button" type="button" onClick={() => void deleteTask(task)}>삭제</button></div>
+    </article>
+  );
+}
+
+function TaskTable({ tasks, updateStatus, startEdit }: { tasks: ProjectTask[]; updateStatus: (task: ProjectTask, status: TaskStatus) => Promise<void>; startEdit: (task: ProjectTask) => void }) {
+  const [statusFilter, setStatusFilter] = useState<TaskStatus | "all">("all");
+  const [priorityFilter, setPriorityFilter] = useState<TaskPriority | "all">("all");
+  const [delayFilter, setDelayFilter] = useState<"all" | "delayed" | "on_track">("all");
+  const [sortKey, setSortKey] = useState<"due_date" | "priority" | "progress" | "created_at" | "status">("due_date");
+
+  const filteredTasks = useMemo(() => {
+    return [...tasks]
+      .filter((task) => statusFilter === "all" || task.status === statusFilter)
+      .filter((task) => priorityFilter === "all" || task.priority === priorityFilter)
+      .filter((task) => {
+        if (delayFilter === "all") return true;
+        return delayFilter === "delayed" ? isDelayed(task) : !isDelayed(task);
+      })
+      .sort((a, b) => {
+        if (sortKey === "priority") return priorityOrder[a.priority] - priorityOrder[b.priority];
+        if (sortKey === "progress") return taskProgress(b) - taskProgress(a);
+        if (sortKey === "created_at") return a.created_at.localeCompare(b.created_at);
+        if (sortKey === "status") return taskStatusOrder.indexOf(a.status) - taskStatusOrder.indexOf(b.status);
+        return (a.due_date ?? "9999-12-31").localeCompare(b.due_date ?? "9999-12-31");
+      });
+  }, [delayFilter, priorityFilter, sortKey, statusFilter, tasks]);
+
+  return (
+    <>
+      <div className="list-toolbar" aria-label="업무 필터와 정렬">
+        <label>상태<select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as TaskStatus | "all")}><option value="all">전체</option>{Object.entries(taskStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+        <label>우선순위<select value={priorityFilter} onChange={(event) => setPriorityFilter(event.target.value as TaskPriority | "all")}><option value="all">전체</option>{Object.entries(taskPriorityLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+        <label>지연<select value={delayFilter} onChange={(event) => setDelayFilter(event.target.value as "all" | "delayed" | "on_track")}><option value="all">전체</option><option value="delayed">지연</option><option value="on_track">정상</option></select></label>
+        <label>정렬<select value={sortKey} onChange={(event) => setSortKey(event.target.value as "due_date" | "priority" | "progress" | "created_at" | "status")}><option value="due_date">마감일</option><option value="priority">우선순위</option><option value="progress">진행률</option><option value="created_at">시작일</option><option value="status">상태</option></select></label>
+        <span className="count-badge">{filteredTasks.length}</span>
+      </div>
+      {filteredTasks.length === 0 ? <div className="empty-state">업무 없음</div> : null}
+      {filteredTasks.length > 0 ? (
+        <div className="data-table-wrap">
+          <table className="data-table dense-task-table">
+            <thead><tr><th>업무명</th><th>상태</th><th>우선순위</th><th>분류</th><th>마감 상태</th><th>시작일</th><th>마감일</th><th>진행률</th><th>지연 여부</th></tr></thead>
+            <tbody>{filteredTasks.map((task) => {
+              const delayed = isDelayed(task);
+              const progress = taskProgress(task);
+              return <tr key={task.id}><td><button className="table-link-button" type="button" onClick={() => startEdit(task)}>{task.title}</button></td><td><select value={task.status} onChange={(event) => void updateStatus(task, event.target.value as TaskStatus)}>{Object.entries(taskStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></td><td><span className={`meta-pill priority-${task.priority}`}>{taskPriorityLabels[task.priority]}</span></td><td><span className="meta-pill status-navy">업무</span></td><td>{delayed ? <span className="meta-pill priority-high">기한 초과</span> : <span className="meta-pill priority-medium">정상</span>}</td><td>{task.created_at.slice(0, 10)}</td><td>{task.due_date ?? "-"}</td><td><div className="table-progress"><div className="mini-progress"><span style={{ width: `${progress}%` }} /></div><b>{progress}%</b></div></td><td>{delayed ? <span className="meta-pill priority-high">지연</span> : <span className="meta-pill priority-medium">정상</span>}</td></tr>;
+            })}</tbody>
+          </table>
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+
+
+function WbsUploadPanel({ tasks }: { tasks: ProjectTask[] }) {
+  return (
+    <section className="wbs-disabled-grid" aria-label="WBS 업로드 준비 중">
+      <section className="panel muted wbs-disabled-panel">
+        <div className="panel-title-row"><h2>WBS 업로드</h2><span className="count-badge">준비 중</span></div>
+        <button type="button" disabled>업로드 비활성화</button>
+      </section>
+      <section className="panel">
+        <div className="panel-title-row"><h2>현재 WBS</h2><span className="count-badge">{tasks.length}</span></div>
+        <div className="data-table-wrap">
+          <table className="data-table dense-task-table">
+            <thead><tr><th>ID</th><th>업무명</th><th>상태</th><th>우선순위</th><th>마감일</th><th>진척도</th></tr></thead>
+            <tbody>{tasks.map((task, index) => <tr key={task.id}><td>{`1.${index + 1}`}</td><td>{task.title}</td><td>{taskStatusLabels[task.status]}</td><td>{taskPriorityLabels[task.priority]}</td><td>{task.due_date ?? "-"}</td><td><div className="table-progress"><div className="mini-progress"><span style={{ width: `${taskProgress(task)}%` }} /></div><b>{taskProgress(task)}%</b></div></td></tr>)}</tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+  );
+}
+
+function CalendarPanel({ tasks }: { tasks: ProjectTask[] }) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const monthCells = getMonthCells(today);
+  const monthLabel = `${today.getFullYear()}.${String(today.getMonth() + 1).padStart(2, "0")}`;
+  const { start: weekStart, end: weekEnd } = getWeekRange();
+  const dueTasks = [...tasks]
+    .filter((task) => task.due_date)
+    .sort((a, b) => (a.due_date ?? "").localeCompare(b.due_date ?? ""));
+  const tasksByDate = dueTasks.reduce<Record<string, ProjectTask[]>>((groups, task) => {
+    if (!task.due_date) return groups;
+    groups[task.due_date] = [...(groups[task.due_date] ?? []), task];
+    return groups;
+  }, {});
+  const delayedTasks = dueTasks.filter(isDelayed);
+  const thisWeekTasks = dueTasks.filter((task) => {
+    if (!task.due_date) return false;
+    const dueDate = parseDueDate(task.due_date);
+    return dueDate >= weekStart && dueDate <= weekEnd;
+  });
+
+  return (
+    <section className="calendar-dashboard">
+      <section className="panel calendar-month-panel">
+        <div className="panel-title-row"><h2>{monthLabel}</h2><span className="count-badge">{dueTasks.length}</span></div>
+        <div className="month-calendar" aria-label="월간 마감 캘린더">
+          {["일", "월", "화", "수", "목", "금", "토"].map((day) => <div className="calendar-weekday" key={day}>{day}</div>)}
+          {monthCells.map((date, index) => {
+            const key = date ? formatDateKey(date) : `blank-${index}`;
+            const dayTasks = date ? tasksByDate[formatDateKey(date)] ?? [] : [];
+            const hasDelayed = dayTasks.some(isDelayed);
+            const isToday = date ? formatDateKey(date) === formatDateKey(today) : false;
+            return (
+              <div className={`calendar-day ${date ? "" : "is-empty"} ${hasDelayed ? "has-delayed" : ""} ${isToday ? "is-today" : ""}`} key={key}>
+                {date ? <time>{date.getDate()}</time> : null}
+                <div className="calendar-day-tasks">
+                  {dayTasks.slice(0, 3).map((task) => (
+                    <span className={`calendar-task-chip priority-${task.priority}`} key={task.id}>{task.title}</span>
+                  ))}
+                  {dayTasks.length > 3 ? <span className="calendar-more">+{dayTasks.length - 3}</span> : null}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      <aside className="calendar-side-stack">
+        <section className="panel">
+          <div className="panel-title-row"><h2>이번 주 마감</h2><span className="count-badge">{thisWeekTasks.length}</span></div>
+          <DueTaskList empty="이번 주 마감 없음" tasks={thisWeekTasks} />
+        </section>
+        <section className="panel">
+          <div className="panel-title-row"><h2>지연 업무</h2><span className="count-badge danger-count">{delayedTasks.length}</span></div>
+          <DueTaskList empty="지연 없음" tasks={delayedTasks} />
+        </section>
+        <section className="panel">
+          <div className="panel-title-row"><h2>날짜별 업무</h2><span className="count-badge">{Object.keys(tasksByDate).length}</span></div>
+          <div className="calendar-list dense-calendar-list">
+            {Object.entries(tasksByDate).map(([date, items]) => (
+              <article className={`calendar-row ${items.some(isDelayed) ? "is-delayed" : ""}`} key={date}>
+                <time>{date}</time>
+                <strong>{items.length}개</strong>
+                <div className="calendar-row-items">{items.slice(0, 2).map((task) => <span key={task.id}>{task.title}</span>)}</div>
+              </article>
+            ))}
+          </div>
+        </section>
+      </aside>
+    </section>
+  );
+}
+
+function DueTaskList({ empty, tasks }: { empty: string; tasks: ProjectTask[] }) {
+  if (tasks.length === 0) return <div className="empty-state">{empty}</div>;
+  return (
+    <div className="calendar-list">
+      {tasks.map((task) => (
+        <article className={`calendar-row ${isDelayed(task) ? "is-delayed" : ""}`} key={task.id}>
+          <time>{task.due_date}</time>
+          <strong>{task.title}</strong>
+          <span className="meta-pill status-navy">{taskStatusLabels[task.status]}</span>
+          <span className={`meta-pill priority-${task.priority}`}>{taskPriorityLabels[task.priority]}</span>
+        </article>
+      ))}
+    </div>
+  );
+}
+
+function linkedWorkTitle(log: WorkLogItem, tasks: ProjectTask[]) {
+  const normalizedTitle = log.title.trim().toLowerCase();
+  const matchedTask = tasks.find((task) => {
+    const taskTitle = task.title.trim().toLowerCase();
+    return taskTitle && (normalizedTitle.includes(taskTitle) || taskTitle.includes(normalizedTitle));
+  });
+  return matchedTask?.title ?? log.title;
+}
+
+function LogPanel({ logs, projectTitle, tasks }: { logs: WorkLogItem[]; projectTitle: string; tasks: ProjectTask[] }) {
+  const sortedLogs = [...logs].sort((a, b) => b.log_date.localeCompare(a.log_date));
+  if (sortedLogs.length === 0) return <section className="panel"><div className="empty-state">로그 없음</div></section>;
+
+  return (
+    <section className="log-dashboard">
+      <section className="panel log-timeline-panel">
+        <div className="panel-title-row"><h2>타임라인</h2><span className="count-badge">{sortedLogs.length}</span></div>
+        <div className="log-timeline">
+          {sortedLogs.map((log) => (
+            <article className="log-timeline-item" key={log.id}>
+              <time>{log.log_date}</time>
+              <div>
+                <div className="jira-card-topline">
+                  <span className="meta-pill status-navy">{workTypeLabels[log.work_type]}</span>
+                  <span className="meta-pill">{log.duration_minutes}분</span>
+                  <span className="meta-pill">{log.project_title || projectTitle}</span>
+                </div>
+                <strong>{linkedWorkTitle(log, tasks)}</strong>
+                <small>{log.next_actions || "다음 액션 없음"}</small>
+                <details className="log-detail-toggle">
+                  <summary>상세</summary>
+                  <dl>
+                    <div><dt>수행 내용</dt><dd>{log.content || "-"}</dd></div>
+                    <div><dt>판단/결정</dt><dd>{log.decisions || "-"}</dd></div>
+                    <div><dt>협의 대상</dt><dd>{log.collaborators || "-"}</dd></div>
+                    <div><dt>이슈</dt><dd>{log.blockers || "-"}</dd></div>
+                  </dl>
+                </details>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="panel log-table-panel">
+        <div className="panel-title-row"><h2>로그 표</h2><span className="count-badge">{sortedLogs.length}</span></div>
+        <div className="data-table-wrap">
+          <table className="data-table dense-task-table">
+            <thead><tr><th>업무 유형</th><th>프로젝트</th><th>수행일</th><th>소요 시간</th><th>다음 액션</th><th>연결 업무</th></tr></thead>
+            <tbody>{sortedLogs.map((log) => <tr key={log.id}><td><span className="meta-pill status-navy">{workTypeLabels[log.work_type]}</span></td><td>{log.project_title || projectTitle}</td><td>{log.log_date}</td><td>{log.duration_minutes}분</td><td>{log.next_actions || "-"}</td><td>{linkedWorkTitle(log, tasks)}</td></tr>)}</tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+  );
+}
+
+function outcomeMetric(outcome: ProjectOutcome) {
+  if (!outcome.metric_name) return "-";
+  if (!outcome.metric_value) return outcome.metric_name;
+  return `${outcome.metric_name} ${outcome.metric_value}${outcome.metric_unit}`;
+}
+
+function outcomeEvidence(outcome: ProjectOutcome, logs: WorkLogItem[]) {
+  if (outcome.evidence_work_log_ids.length === 0) return "-";
+  return outcome.evidence_work_log_ids.map((id) => {
+    const log = logs.find((item) => item.id === id);
+    return log ? `${log.log_date} ${log.title}` : "연결 로그";
+  }).join(", ");
+}
+
+function OutcomePanel({ logs, outcomes, quantitativeOutcomes, resumeReadyOutcomes }: { logs: WorkLogItem[]; outcomes: ProjectOutcome[]; quantitativeOutcomes: number; resumeReadyOutcomes: number }) {
+  if (outcomes.length === 0) return <section className="panel"><div className="empty-state">성과 없음</div></section>;
+
+  return (
+    <section className="outcome-dashboard">
+      <section className="summary-grid inline outcome-metrics" aria-label="성과 지표">
+        <div className="metric-card"><span>전체</span><strong>{outcomes.length}</strong></div>
+        <div className="metric-card"><span>정량</span><strong>{quantitativeOutcomes}</strong></div>
+        <div className="metric-card"><span>정성</span><strong>{outcomes.length - quantitativeOutcomes}</strong></div>
+        <div className="metric-card"><span>이력서 가능</span><strong>{resumeReadyOutcomes}</strong></div>
+      </section>
+
+      <section className="outcome-card-grid">
+        {outcomes.map((outcome) => (
+          <article className="candidate-card outcome-card" key={outcome.id}>
+            <div className="panel-title-row"><strong>{outcome.title}</strong>{outcome.resume_ready ? <span className="meta-pill priority-medium">이력서 가능</span> : <span className="meta-pill">보류</span>}</div>
+            <div className="outcome-facts">
+              <div><span>Before</span><b>{outcome.before_state || "-"}</b></div>
+              <div><span>After</span><b>{outcome.after_state || "-"}</b></div>
+              <div><span>지표</span><b>{outcome.metric_name || "-"}</b></div>
+              <div><span>수치</span><b>{outcome.metric_value ?? "-"}</b></div>
+              <div><span>단위</span><b>{outcome.metric_unit || "-"}</b></div>
+              <div><span>근거 로그</span><b>{outcomeEvidence(outcome, logs)}</b></div>
+            </div>
+          </article>
+        ))}
+      </section>
+
+      <section className="panel outcome-table-panel">
+        <div className="panel-title-row"><h2>성과 표</h2><span className="count-badge">{outcomes.length}</span></div>
+        <div className="data-table-wrap">
+          <table className="data-table dense-task-table">
+            <thead><tr><th>개선 항목</th><th>유형</th><th>개선 전</th><th>개선 후</th><th>측정 지표</th><th>수치</th><th>단위</th><th>근거 로그</th><th>이력서</th></tr></thead>
+            <tbody>{outcomes.map((outcome) => <tr key={outcome.id}><td>{outcome.title}</td><td>{outcomeTypeLabels[outcome.outcome_type]}</td><td>{outcome.before_state || "-"}</td><td>{outcome.after_state || "-"}</td><td>{outcome.metric_name || "-"}</td><td>{outcome.metric_value ?? "-"}</td><td>{outcome.metric_unit || "-"}</td><td>{outcomeEvidence(outcome, logs)}</td><td>{outcome.resume_ready ? <span className="meta-pill priority-medium">가능</span> : <span className="meta-pill">보류</span>}</td></tr>)}</tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+  );
+}
+
+function careerCopyText(asset: CareerAsset) {
+  return asset.markdown || [asset.resume_bullets, asset.career_description, asset.portfolio_description, asset.star_answer].filter(Boolean).join("\n\n");
+}
+
+function copyCareerText(text: string) {
+  if (!text) return;
+  void navigator.clipboard?.writeText(text);
+}
+
+function CareerPanel({ careerAssets }: { careerAssets: CareerAsset[] }) {
+  if (careerAssets.length === 0) return <section className="panel"><div className="empty-state">경력 자산 없음</div></section>;
+
+  return (
+    <section className="career-dashboard">
+      <section className="summary-grid inline outcome-metrics" aria-label="경력 자산 지표">
+        <div className="metric-card"><span>자산</span><strong>{careerAssets.length}</strong></div>
+        <div className="metric-card"><span>이력서</span><strong>{careerAssets.filter((asset) => asset.resume_bullets).length}</strong></div>
+        <div className="metric-card"><span>포트폴리오</span><strong>{careerAssets.filter((asset) => asset.portfolio_description).length}</strong></div>
+        <div className="metric-card"><span>면접</span><strong>{careerAssets.filter((asset) => asset.star_answer).length}</strong></div>
+      </section>
+      <section className="panel career-index-panel">
+        <div className="panel-title-row"><h2>경력 자산</h2><span className="count-badge">{careerAssets.length}</span></div>
+        <div className="data-table-wrap">
+          <table className="data-table dense-task-table">
+            <thead><tr><th>생성 방식</th><th>업데이트</th><th>수행 요약</th><th>성과 요약</th></tr></thead>
+            <tbody>{careerAssets.map((asset) => <tr key={asset.id}><td><span className="meta-pill status-navy">{asset.generation_method}</span></td><td>{asset.updated_at.slice(0, 10)}</td><td>{asset.work_summary || "-"}</td><td>{asset.outcome_summary || "-"}</td></tr>)}</tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="career-result-grid">
+        {careerAssets.map((asset) => {
+          const text = careerCopyText(asset);
+          return (
+            <article className="panel career-result-card" key={asset.id}>
+              <div className="panel-title-row"><h2>{asset.generation_method}</h2><button className="secondary-button" type="button" onClick={() => copyCareerText(text)}>복사</button></div>
+              <details className="career-copy-details"><summary>복사 영역</summary><pre className="career-copy-output">{text || "경력 문장 없음"}</pre></details>
+            </article>
+          );
+        })}
+      </section>
+    </section>
   );
 }

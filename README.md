@@ -280,6 +280,32 @@ python scripts/seed_local.py
 실행 후 <http://localhost:3000> 또는 <http://localhost:3000/projects>에서
 `[샘플]` 프로젝트와 잔여 업무/진척도를 확인할 수 있습니다.
 
+### 대화 기반 사용자 프로젝트 seed 생성
+
+기존 데이터는 삭제하지 않고, 중복 실행해도 같은 데이터가 반복 생성되지 않습니다.
+생성 데이터는 `[user_project_seed]` 제목과 `generation_method=user_project_seed`로 구분됩니다.
+
+```bash
+# Docker Compose backend 컨테이너
+docker compose up -d db backend
+docker compose exec backend python scripts/seed_local.py --user-projects
+
+# 로컬 backend 가상환경
+cd backend
+source .venv/bin/activate
+python scripts/seed_local.py --user-projects
+```
+
+생성되는 데이터:
+
+- `[user_project_seed] work-support`
+- `[user_project_seed] OCC AI 민원 플랫폼`
+- `[user_project_seed] E-manual RAG Chatbot`
+- 프로젝트별 업무 3~5개, 업무 로그 2~3개, 성과 후보 1~2개, 경력 자산 1개
+
+수치 성과는 임의 생성하지 않습니다. 수치가 확정되지 않은 성과는
+`metric_value=NULL`, `metric_unit=추정 입력 필요`, `resume_ready=false`로 저장됩니다.
+
 옵션:
 
 ```bash

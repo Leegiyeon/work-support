@@ -35,6 +35,18 @@ export default function WeeklyReportPage() {
   const [copyMessage, setCopyMessage] = useState("");
 
   const periodLabel = useMemo(() => `${startDate} ~ ${endDate}`, [startDate, endDate]);
+  const reportMetrics = useMemo(() => {
+    if (!report) return { projects: 0, tasks: 0, decisions: 0, risks: 0 };
+    return report.projects.reduce(
+      (totals, project) => ({
+        projects: totals.projects + 1,
+        tasks: totals.tasks + project.tasks.length,
+        decisions: totals.decisions + project.decisions.length,
+        risks: totals.risks + project.risks.length
+      }),
+      { projects: 0, tasks: 0, decisions: 0, risks: 0 }
+    );
+  }, [report]);
 
   async function handleGenerateReport() {
     setIsLoading(true);
@@ -77,60 +89,38 @@ export default function WeeklyReportPage() {
 
   return (
     <main className="page-shell report-page">
-      <Link className="text-link" href="/">
-        ← 홈으로
-      </Link>
-
-      <section className="hero-card compact">
-        <p className="eyebrow">weekly report</p>
-        <h1>주간 업무 리포트 생성</h1>
-        <p className="hero-description">
-          선택한 기간에 업데이트된 프로젝트, 문서 요약, 할 일, 결정사항, 리스크를 모아
-          근거 기반 Markdown 리포트를 생성합니다. 메일 전송과 n8n 연동은 포함하지 않습니다.
-        </p>
-      </section>
+      <header className="dashboard-topbar compact-topbar">
+        <div>
+          <Link className="text-link" href="/">← 대시보드</Link>
+          <h1>주간 리포트</h1>
+        </div>
+        <div className="task-meta"><span className="meta-pill status-navy">{periodLabel}</span></div>
+      </header>
 
       <section className="panel report-controls" aria-label="리포트 기간 선택">
-        <label>
-          시작일
-          <input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} />
-        </label>
-        <label>
-          종료일
-          <input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} />
-        </label>
-        <button type="button" onClick={handleGenerateReport} disabled={isLoading}>
-          {isLoading ? "생성 중..." : "리포트 생성"}
-        </button>
+        <label>시작일<input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} /></label>
+        <label>종료일<input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} /></label>
+        <button type="button" onClick={handleGenerateReport} disabled={isLoading}>{isLoading ? "생성 중" : "생성"}</button>
       </section>
 
       {errorMessage ? <div className="alert error">{errorMessage}</div> : null}
 
       {report ? (
-        <section className="panel report-result" aria-label={`${periodLabel} 주간 리포트 결과`}>
-          <div className="report-result-header">
-            <div>
-              <p className="eyebrow">generated markdown</p>
-              <h2>{periodLabel}</h2>
-              <p className="muted-text">
-                프로젝트 {report.projects.length}개 기준 · 저장된 데이터만 사용
-              </p>
-            </div>
-            <button type="button" className="secondary-button" onClick={handleCopy}>
-              Markdown 복사
-            </button>
-          </div>
-          {copyMessage ? <div className="alert success">{copyMessage}</div> : null}
-          <pre className="markdown-output">{report.markdown}</pre>
-        </section>
+        <>
+          <section className="summary-grid dashboard-metrics" aria-label="리포트 지표">
+            <div className="metric-card"><span>프로젝트</span><strong>{reportMetrics.projects}</strong></div>
+            <div className="metric-card"><span>업무</span><strong>{reportMetrics.tasks}</strong></div>
+            <div className="metric-card"><span>결정</span><strong>{reportMetrics.decisions}</strong></div>
+            <div className="metric-card"><span>리스크</span><strong>{reportMetrics.risks}</strong></div>
+          </section>
+          <section className="panel report-result" aria-label={`${periodLabel} 주간 리포트 결과`}>
+            <div className="report-result-header"><h2>{periodLabel}</h2><button type="button" className="secondary-button" onClick={handleCopy}>Markdown 복사</button></div>
+            {copyMessage ? <div className="alert success">{copyMessage}</div> : null}
+            <pre className="markdown-output">{report.markdown}</pre>
+          </section>
+        </>
       ) : (
-        <section className="panel muted">
-          <h2>생성 전 안내</h2>
-          <p>
-            백엔드의 <code>/reports/weekly</code> API가 PostgreSQL에 저장된 프로젝트·문서·추출 항목을 조회합니다.
-            데이터베이스가 비어 있으면 “업데이트된 프로젝트 없음” 리포트가 생성됩니다.
-          </p>
-        </section>
+        <section className="panel muted"><div className="empty-state">리포트 없음</div></section>
       )}
     </main>
   );
