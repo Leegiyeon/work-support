@@ -337,6 +337,7 @@ export default function ProjectDetailPage({ params }: PageProps) {
       <div className="dashboard-topbar compact-topbar">
         <div>
           <Link className="text-link" href="/projects">← 프로젝트</Link>
+          <span className="section-kicker">Project detail</span>
           <h1>{project?.title ?? "프로젝트"}</h1>
         </div>
         {project ? (
@@ -379,19 +380,19 @@ export default function ProjectDetailPage({ params }: PageProps) {
                 </div>
               </section>
               <section className="panel">
-                <div className="panel-title-row"><h2>이번 주 마감</h2><span className="count-badge">{dashboard.thisWeekDueTasks.length}</span></div>
+                <div className="panel-title-row"><h2>이번 주 마감</h2><span className="count-badge">{dashboard.thisWeekDueTasks.length}개</span></div>
                 <DueTaskList empty="마감 없음" tasks={dashboard.thisWeekDueTasks.slice(0, 5)} />
               </section>
               <section className="panel">
-                <div className="panel-title-row"><h2>지연 업무</h2><span className="count-badge danger-count">{dashboard.delayedTasks.length}</span></div>
+                <div className="panel-title-row"><h2>지연 업무</h2><span className="count-badge danger-count">{dashboard.delayedTasks.length}개</span></div>
                 <DueTaskList empty="지연 없음" tasks={dashboard.delayedTasks.slice(0, 5)} />
               </section>
               <section className="panel">
-                <div className="panel-title-row"><h2>최근 로그</h2><span className="count-badge">{dashboard.recentLogs.length}</span></div>
+                <div className="panel-title-row"><h2>최근 로그</h2><span className="count-badge">{dashboard.recentLogs.length}개</span></div>
                 <MiniLogList logs={dashboard.recentLogs} />
               </section>
               <section className="panel">
-                <div className="panel-title-row"><h2>최근 성과</h2><span className="count-badge">{dashboard.latestOutcomes.length}</span></div>
+                <div className="panel-title-row"><h2>최근 성과</h2><span className="count-badge">{dashboard.latestOutcomes.length}개</span></div>
                 <MiniOutcomeList outcomes={dashboard.latestOutcomes} />
               </section>
               <details className="panel project-settings-panel">
@@ -411,7 +412,7 @@ export default function ProjectDetailPage({ params }: PageProps) {
               <section className="task-board" aria-label="업무 보드">
                 {groupedTasks.map((group) => (
                   <div className="panel task-column" key={group.status}>
-                    <div className="panel-title-row"><h2>{group.label}</h2><span className="count-badge">{group.items.length}</span></div>
+                    <div className="panel-title-row"><h2>{group.label}</h2><span className="count-badge">{group.items.length}개</span></div>
                     {group.items.length === 0 ? <div className="empty-state">없음</div> : null}
                     {group.items.map((task) => <TaskCard deleteTask={deleteTask} key={task.id} startEdit={startEdit} task={task} updateStatus={updateStatus} />)}
                   </div>
@@ -452,18 +453,18 @@ function MiniOutcomeList({ outcomes }: { outcomes: ProjectOutcome[] }) {
 function TaskFormPanel({ editingTaskId, isSavingTask, taskForm, setTaskForm, onSubmit, onCancel }: { editingTaskId: string | null; isSavingTask: boolean; taskForm: TaskForm; setTaskForm: (form: TaskForm) => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void; onCancel: () => void }) {
   return (
     <section className="panel">
-      <div className="panel-title-row"><h2>{editingTaskId ? "업무 수정" : "업무 추가"}</h2>{editingTaskId ? <button className="secondary-button" type="button" onClick={onCancel}>취소</button> : null}</div>
+      <div className="panel-title-row"><h2>{editingTaskId ? "업무 수정" : "업무 추가"}</h2>{editingTaskId ? <button className="secondary-button" type="button" onClick={onCancel}>취소</button> : <span className="meta-pill">필수: 업무명</span>}</div>
       <form className="stacked-form compact-form" onSubmit={onSubmit}>
         <div className="form-grid three-columns">
-          <label>업무명<input placeholder="예: API 오류 처리 정리" value={taskForm.title} onChange={(event) => setTaskForm({ ...taskForm, title: event.target.value })} /></label>
+          <label>업무명<input placeholder="예: API 응답 시간 개선" value={taskForm.title} onChange={(event) => setTaskForm({ ...taskForm, title: event.target.value })} /></label>
           <label>상태<select value={taskForm.status} onChange={(event) => setTaskForm({ ...taskForm, status: event.target.value as TaskStatus })}>{Object.entries(taskStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
           <label>우선순위<select value={taskForm.priority} onChange={(event) => setTaskForm({ ...taskForm, priority: event.target.value as TaskPriority })}>{Object.entries(taskPriorityLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
         </div>
         <div className="form-grid two-columns">
           <label>마감일<input type="date" value={taskForm.due_date} onChange={(event) => setTaskForm({ ...taskForm, due_date: event.target.value })} /></label>
-          <label>설명<input placeholder="완료 기준 또는 참고 메모" value={taskForm.description} onChange={(event) => setTaskForm({ ...taskForm, description: event.target.value })} /></label>
+          <label>설명<input placeholder="작업 범위나 완료 기준" value={taskForm.description} onChange={(event) => setTaskForm({ ...taskForm, description: event.target.value })} /></label>
         </div>
-        <button type="submit" disabled={isSavingTask}>{isSavingTask ? "저장 중" : editingTaskId ? "업무 수정" : "업무 추가"}</button>
+        <div className="form-actions"><button type="submit" disabled={isSavingTask}>{isSavingTask ? "저장 중" : editingTaskId ? "업무 저장" : "업무 추가"}</button></div>
       </form>
     </section>
   );
@@ -516,12 +517,13 @@ function TaskTable({ tasks, updateStatus, startEdit }: { tasks: ProjectTask[]; u
 
   return (
     <>
+      <div className="panel-title-row table-section-title"><h2>업무 목록</h2><span className="meta-pill">필터 · 정렬 · 상태 변경</span></div>
       <div className="list-toolbar" aria-label="업무 필터와 정렬">
         <label>상태<select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as TaskStatus | "all")}><option value="all">전체</option>{Object.entries(taskStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
         <label>우선순위<select value={priorityFilter} onChange={(event) => setPriorityFilter(event.target.value as TaskPriority | "all")}><option value="all">전체</option>{Object.entries(taskPriorityLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
         <label>지연<select value={delayFilter} onChange={(event) => setDelayFilter(event.target.value as "all" | "delayed" | "on_track")}><option value="all">전체</option><option value="delayed">지연</option><option value="on_track">정상</option></select></label>
         <label>정렬<select value={sortKey} onChange={(event) => setSortKey(event.target.value as "due_date" | "priority" | "progress" | "created_at" | "status")}><option value="due_date">마감일</option><option value="priority">우선순위</option><option value="progress">진행률</option><option value="created_at">시작일</option><option value="status">상태</option></select></label>
-        <span className="count-badge">{filteredTasks.length}</span>
+        <span className="count-badge">{filteredTasks.length}개</span>
       </div>
       {filteredTasks.length === 0 ? <div className="empty-state">업무 없음</div> : null}
       {filteredTasks.length > 0 ? (
@@ -550,7 +552,7 @@ function WbsUploadPanel({ tasks }: { tasks: ProjectTask[] }) {
         <button type="button" disabled>업로드 비활성화</button>
       </section>
       <section className="panel">
-        <div className="panel-title-row"><h2>현재 WBS</h2><span className="count-badge">{tasks.length}</span></div>
+        <div className="panel-title-row"><h2>현재 WBS</h2><span className="count-badge">{tasks.length}개</span></div>
         <div className="data-table-wrap">
           <table className="data-table dense-task-table">
             <thead><tr><th>ID</th><th>업무명</th><th>상태</th><th>우선순위</th><th>마감일</th><th>진척도</th></tr></thead>
@@ -586,7 +588,7 @@ function CalendarPanel({ tasks }: { tasks: ProjectTask[] }) {
   return (
     <section className="calendar-dashboard">
       <section className="panel calendar-month-panel">
-        <div className="panel-title-row"><h2>{monthLabel}</h2><span className="count-badge">{dueTasks.length}</span></div>
+        <div className="panel-title-row"><h2>{monthLabel}</h2><span className="count-badge">{dueTasks.length}개</span></div>
         <div className="month-calendar" aria-label="월간 마감 캘린더">
           {["일", "월", "화", "수", "목", "금", "토"].map((day) => <div className="calendar-weekday" key={day}>{day}</div>)}
           {monthCells.map((date, index) => {
@@ -611,15 +613,15 @@ function CalendarPanel({ tasks }: { tasks: ProjectTask[] }) {
 
       <aside className="calendar-side-stack">
         <section className="panel">
-          <div className="panel-title-row"><h2>이번 주 마감</h2><span className="count-badge">{thisWeekTasks.length}</span></div>
+          <div className="panel-title-row"><h2>이번 주 마감</h2><span className="count-badge">{thisWeekTasks.length}개</span></div>
           <DueTaskList empty="이번 주 마감 없음" tasks={thisWeekTasks} />
         </section>
         <section className="panel">
-          <div className="panel-title-row"><h2>지연 업무</h2><span className="count-badge danger-count">{delayedTasks.length}</span></div>
+          <div className="panel-title-row"><h2>지연 업무</h2><span className="count-badge danger-count">{delayedTasks.length}개</span></div>
           <DueTaskList empty="지연 없음" tasks={delayedTasks} />
         </section>
         <section className="panel">
-          <div className="panel-title-row"><h2>날짜별 업무</h2><span className="count-badge">{Object.keys(tasksByDate).length}</span></div>
+          <div className="panel-title-row"><h2>날짜별 업무</h2><span className="count-badge">{Object.keys(tasksByDate).length}일</span></div>
           <div className="calendar-list dense-calendar-list">
             {Object.entries(tasksByDate).map(([date, items]) => (
               <article className={`calendar-row ${items.some(isDelayed) ? "is-delayed" : ""}`} key={date}>
@@ -667,7 +669,7 @@ function LogPanel({ logs, projectTitle, tasks }: { logs: WorkLogItem[]; projectT
   return (
     <section className="log-dashboard">
       <section className="panel log-timeline-panel">
-        <div className="panel-title-row"><h2>타임라인</h2><span className="count-badge">{sortedLogs.length}</span></div>
+        <div className="panel-title-row"><h2>타임라인</h2><span className="count-badge">{sortedLogs.length}개</span></div>
         <div className="log-timeline">
           {sortedLogs.map((log) => (
             <article className="log-timeline-item" key={log.id}>
@@ -696,7 +698,7 @@ function LogPanel({ logs, projectTitle, tasks }: { logs: WorkLogItem[]; projectT
       </section>
 
       <section className="panel log-table-panel">
-        <div className="panel-title-row"><h2>로그 표</h2><span className="count-badge">{sortedLogs.length}</span></div>
+        <div className="panel-title-row"><h2>로그 표</h2><span className="count-badge">{sortedLogs.length}개</span></div>
         <div className="data-table-wrap">
           <table className="data-table dense-task-table">
             <thead><tr><th>업무 유형</th><th>프로젝트</th><th>수행일</th><th>소요 시간</th><th>다음 액션</th><th>연결 업무</th></tr></thead>
@@ -751,11 +753,11 @@ function OutcomePanel({ logs, outcomes, quantitativeOutcomes, resumeReadyOutcome
       </section>
 
       <section className="panel outcome-table-panel">
-        <div className="panel-title-row"><h2>성과 표</h2><span className="count-badge">{outcomes.length}</span></div>
+        <div className="panel-title-row"><h2>성과 표</h2><span className="count-badge">{outcomes.length}개</span></div>
         <div className="data-table-wrap">
           <table className="data-table dense-task-table">
             <thead><tr><th>개선 항목</th><th>유형</th><th>개선 전</th><th>개선 후</th><th>측정 지표</th><th>수치</th><th>단위</th><th>근거 로그</th><th>이력서</th></tr></thead>
-            <tbody>{outcomes.map((outcome) => <tr key={outcome.id}><td>{outcome.title}</td><td>{outcomeTypeLabels[outcome.outcome_type]}</td><td>{outcome.before_state || "-"}</td><td>{outcome.after_state || "-"}</td><td>{outcome.metric_name || "-"}</td><td>{outcome.metric_value ?? "-"}</td><td>{outcome.metric_unit || "-"}</td><td>{outcomeEvidence(outcome, logs)}</td><td>{outcome.resume_ready ? <span className="meta-pill priority-medium">가능</span> : <span className="meta-pill">보류</span>}</td></tr>)}</tbody>
+            <tbody>{outcomes.map((outcome) => <tr key={outcome.id}><td>{outcome.title}</td><td>{outcomeTypeLabels[outcome.outcome_type]}</td><td className="truncate-cell">{outcome.before_state || "-"}</td><td className="truncate-cell">{outcome.after_state || "-"}</td><td>{outcome.metric_name || "-"}</td><td>{outcome.metric_value ?? "-"}</td><td>{outcome.metric_unit || "-"}</td><td>{outcomeEvidence(outcome, logs)}</td><td>{outcome.resume_ready ? <span className="meta-pill priority-medium">가능</span> : <span className="meta-pill">보류</span>}</td></tr>)}</tbody>
           </table>
         </div>
       </section>
@@ -784,11 +786,11 @@ function CareerPanel({ careerAssets }: { careerAssets: CareerAsset[] }) {
         <div className="metric-card"><span>면접</span><strong>{careerAssets.filter((asset) => asset.star_answer).length}</strong></div>
       </section>
       <section className="panel career-index-panel">
-        <div className="panel-title-row"><h2>경력 자산</h2><span className="count-badge">{careerAssets.length}</span></div>
+        <div className="panel-title-row"><h2>경력 자산</h2><span className="count-badge">{careerAssets.length}개</span></div>
         <div className="data-table-wrap">
           <table className="data-table dense-task-table">
             <thead><tr><th>생성 방식</th><th>업데이트</th><th>수행 요약</th><th>성과 요약</th></tr></thead>
-            <tbody>{careerAssets.map((asset) => <tr key={asset.id}><td><span className="meta-pill status-navy">{asset.generation_method}</span></td><td>{asset.updated_at.slice(0, 10)}</td><td>{asset.work_summary || "-"}</td><td>{asset.outcome_summary || "-"}</td></tr>)}</tbody>
+            <tbody>{careerAssets.map((asset) => <tr key={asset.id}><td><span className="meta-pill status-navy">{asset.generation_method}</span></td><td>{asset.updated_at.slice(0, 10)}</td><td className="truncate-cell">{asset.work_summary || "-"}</td><td className="truncate-cell">{asset.outcome_summary || "-"}</td></tr>)}</tbody>
           </table>
         </div>
       </section>
