@@ -111,6 +111,7 @@ export default function HomePage() {
     <main className="page-shell dashboard-page">
       <header className="dashboard-topbar">
         <div>
+          <span className="section-kicker">Dashboard</span>
           <h1>업무 현황</h1>
         </div>
         <nav className="hero-actions" aria-label="주요 이동">
@@ -132,7 +133,7 @@ export default function HomePage() {
         <section className="panel dashboard-main-panel">
           <div className="panel-title-row">
             <h2>프로젝트 진행률</h2>
-            <span className="count-badge">{projects.length}</span>
+            <span className="count-badge">{projects.length}개</span>
           </div>
           {isLoading ? <div className="empty-state">로딩 중</div> : null}
           {!isLoading && projects.length === 0 ? (
@@ -159,7 +160,7 @@ export default function HomePage() {
         <section className="panel status-graph-panel">
           <div className="panel-title-row">
             <h2>상태별 업무</h2>
-            <span className="count-badge">{dashboard.totalTasks}</span>
+            <span className="count-badge">{dashboard.totalTasks}개</span>
           </div>
           <div className="status-bars">
             {dashboard.taskStatusCounts.map((item) => (
@@ -175,7 +176,7 @@ export default function HomePage() {
         <section className="panel delayed-panel">
           <div className="panel-title-row">
             <h2>지연 업무</h2>
-            <span className="count-badge danger-count">{dashboard.delayedTasks.length}</span>
+            <span className="count-badge danger-count">{dashboard.delayedTasks.length}개</span>
           </div>
           {dashboard.delayedTasks.length === 0 ? <div className="empty-state">지연 없음</div> : null}
           <div className="dense-list">
@@ -192,7 +193,7 @@ export default function HomePage() {
         <section className="panel completed-panel">
           <div className="panel-title-row">
             <h2>이번 주 완료</h2>
-            <span className="count-badge">{dashboard.completedThisWeek.length}</span>
+            <span className="count-badge">{dashboard.completedThisWeek.length}개</span>
           </div>
           {dashboard.completedThisWeek.length === 0 ? <div className="empty-state">완료 업무 없음</div> : null}
           <div className="data-table-wrap">
