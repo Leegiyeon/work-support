@@ -112,12 +112,9 @@ select {
 
 input:focus,
 textarea:focus,
-select:focus,
-button:focus-visible,
-a:focus-visible,
-summary:focus-visible {
-  outline: 3px solid rgba(37, 99, 235, 0.22);
-  outline-offset: 2px;
+select:focus {
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent-blue) 12%, transparent);
 }
 
 textarea {
@@ -266,6 +263,15 @@ textarea {
 .form-actions button:hover,
 .table-link-button:hover {
   filter: brightness(1.06);
+}
+
+.primary-link:hover,
+.secondary-button:hover,
+.report-controls button:hover,
+.stacked-form button:hover,
+.form-actions button:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-card);
 }
 
 .secondary-button {
@@ -625,6 +631,14 @@ textarea {
 
 .data-table td {
   color: #24364b;
+}
+
+.data-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.data-table tbody tr:hover td {
+  background: #f8fbff;
 }
 
 .data-table tr:last-child td {

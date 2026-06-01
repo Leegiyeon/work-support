@@ -463,9 +463,8 @@ function MiniOutcomeList({ outcomes }: { outcomes: ProjectOutcome[] }) {
 
 function TaskFormPanel({ editingTaskId, isSavingTask, taskForm, setTaskForm, onSubmit, onCancel }: { editingTaskId: string | null; isSavingTask: boolean; taskForm: TaskForm; setTaskForm: (form: TaskForm) => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void; onCancel: () => void }) {
   return (
-    <section className="panel task-form-panel">
-      <div className="panel-title-row"><h2>{editingTaskId ? "업무 수정" : "업무 추가"}</h2>{editingTaskId ? <button className="secondary-button" type="button" onClick={onCancel}>취소</button> : null}</div>
-      <p className="panel-subtitle">업무명만 필수입니다. 상태, 우선순위, 마감일은 보드와 목록에 바로 반영됩니다.</p>
+    <section className="panel">
+      <div className="panel-title-row"><h2>{editingTaskId ? "업무 수정" : "업무 추가"}</h2>{editingTaskId ? <button className="secondary-button" type="button" onClick={onCancel}>취소</button> : <span className="meta-pill">필수: 업무명</span>}</div>
       <form className="stacked-form compact-form" onSubmit={onSubmit}>
         <div className="form-grid three-columns">
           <label>업무명<input placeholder="예: API 응답 시간 개선" value={taskForm.title} onChange={(event) => setTaskForm({ ...taskForm, title: event.target.value })} /></label>
@@ -474,9 +473,9 @@ function TaskFormPanel({ editingTaskId, isSavingTask, taskForm, setTaskForm, onS
         </div>
         <div className="form-grid two-columns">
           <label>마감일<input type="date" value={taskForm.due_date} onChange={(event) => setTaskForm({ ...taskForm, due_date: event.target.value })} /></label>
-          <label>설명<textarea placeholder="완료 기준 또는 참고 메모" value={taskForm.description} onChange={(event) => setTaskForm({ ...taskForm, description: event.target.value })} /></label>
+          <label>설명<input placeholder="작업 범위나 완료 기준" value={taskForm.description} onChange={(event) => setTaskForm({ ...taskForm, description: event.target.value })} /></label>
         </div>
-        <button type="submit" disabled={isSavingTask}>{isSavingTask ? "저장 중" : editingTaskId ? "수정 저장" : "업무 추가"}</button>
+        <div className="form-actions"><button type="submit" disabled={isSavingTask}>{isSavingTask ? "저장 중" : editingTaskId ? "업무 저장" : "업무 추가"}</button></div>
       </form>
     </section>
   );
