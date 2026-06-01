@@ -13,7 +13,8 @@ import type {
   ProjectTask,
   TaskPriority,
   TaskStatus,
-  WorkLogItem
+  WorkLogItem,
+  WorkType
 } from "../types";
 import {
   outcomeTypeLabels,
@@ -44,6 +45,18 @@ type ProjectForm = {
   status: ProjectStatus;
 };
 
+type WorkLogForm = {
+  log_date: string;
+  work_type: WorkType;
+  title: string;
+  content: string;
+  decisions: string;
+  collaborators: string;
+  next_actions: string;
+  duration_minutes: string;
+  blockers: string;
+};
+
 const tabs: { id: DetailTab; label: string }[] = [
   { id: "overview", label: "개요" },
   { id: "board", label: "업무 보드" },
@@ -72,6 +85,20 @@ const initialProjectForm: ProjectForm = {
   role: "",
   status: "idea"
 };
+
+function createInitialWorkLogForm(): WorkLogForm {
+  return {
+    log_date: formatDateKey(new Date()),
+    work_type: "other",
+    title: "",
+    content: "",
+    decisions: "",
+    collaborators: "",
+    next_actions: "",
+    duration_minutes: "0",
+    blockers: ""
+  };
+}
 
 function isDelayed(task: ProjectTask) {
   if (!task.due_date || task.status === "done") return false;
@@ -147,10 +174,13 @@ export default function ProjectDetailPage({ params }: PageProps) {
   const [careerAssets, setCareerAssets] = useState<CareerAsset[]>([]);
   const [projectForm, setProjectForm] = useState<ProjectForm>(initialProjectForm);
   const [taskForm, setTaskForm] = useState<TaskForm>(initialTaskForm);
+  const [logForm, setLogForm] = useState<WorkLogForm>(() => createInitialWorkLogForm());
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [editingLogId, setEditingLogId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSavingProject, setIsSavingProject] = useState(false);
   const [isSavingTask, setIsSavingTask] = useState(false);
+  const [isSavingLog, setIsSavingLog] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
   const groupedTasks = useMemo(() => {
@@ -334,6 +364,75 @@ export default function ProjectDetailPage({ params }: PageProps) {
     await loadProject();
   }
 
+  async function handleSaveLog(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!logForm.title.trim()) {
+      setErrorMessage("로그 제목을 입력하세요.");
+      return;
+    }
+
+    const durationMinutes = Number.parseInt(logForm.duration_minutes || "0", 10);
+    const payload = {
+      ...logForm,
+      title: logForm.title.trim(),
+      duration_minutes: Number.isFinite(durationMinutes) && durationMinutes > 0 ? durationMinutes : 0,
+      project_id: projectId
+    };
+
+    setIsSavingLog(true);
+    setErrorMessage("");
+    try {
+      const response = await fetch(editingLogId ? `/api/work-logs/${editingLogId}` : "/api/work-logs", {
+        method: editingLogId ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (!response.ok) {
+        const detail = await response.json().catch(() => null);
+        throw new Error(parseApiErrorMessage(detail));
+      }
+      setLogForm(createInitialWorkLogForm());
+      setEditingLogId(null);
+      await loadProject();
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "업무 로그를 저장하지 못했습니다.");
+    } finally {
+      setIsSavingLog(false);
+    }
+  }
+
+  function startEditLog(log: WorkLogItem) {
+    setEditingLogId(log.id);
+    setLogForm({
+      log_date: log.log_date,
+      work_type: log.work_type,
+      title: log.title,
+      content: log.content,
+      decisions: log.decisions,
+      collaborators: log.collaborators,
+      next_actions: log.next_actions,
+      duration_minutes: String(log.duration_minutes),
+      blockers: log.blockers
+    });
+    setActiveTab("logs");
+  }
+
+  async function deleteLog(log: WorkLogItem) {
+    if (!window.confirm("업무 로그를 삭제할까요?")) return;
+    setErrorMessage("");
+    const response = await fetch(`/api/work-logs/${log.id}`, { method: "DELETE" });
+    if (!response.ok) {
+      const detail = await response.json().catch(() => null);
+      setErrorMessage(parseApiErrorMessage(detail));
+      return;
+    }
+    if (editingLogId === log.id) {
+      setEditingLogId(null);
+      setLogForm(createInitialWorkLogForm());
+    }
+    await loadProject();
+  }
+
   return (
     <main className="page-shell project-page project-detail-page">
       <div className="dashboard-topbar compact-topbar">
@@ -440,7 +539,7 @@ export default function ProjectDetailPage({ params }: PageProps) {
 
           {activeTab === "wbs" ? <WbsUploadPanel tasks={dashboard.sortedTasks} /> : null}
 
-          {activeTab === "logs" ? <LogPanel logs={workLogs} projectTitle={project.title} tasks={tasks} /> : null}
+          {activeTab === "logs" ? <LogPanel deleteLog={deleteLog} editingLogId={editingLogId} isSavingLog={isSavingLog} logForm={logForm} logs={workLogs} projectTitle={project.title} setLogForm={setLogForm} startEditLog={startEditLog} tasks={tasks} onCancel={() => { setEditingLogId(null); setLogForm(createInitialWorkLogForm()); }} onSubmit={handleSaveLog} /> : null}
 
           {activeTab === "outcomes" ? <OutcomePanel logs={workLogs} outcomes={outcomes} quantitativeOutcomes={dashboard.quantitativeOutcomes} resumeReadyOutcomes={dashboard.resumeReadyOutcomes} /> : null}
 
@@ -673,14 +772,38 @@ function linkedWorkTitle(log: WorkLogItem, tasks: ProjectTask[]) {
   return matchedTask?.title ?? log.title;
 }
 
-function LogPanel({ logs, projectTitle, tasks }: { logs: WorkLogItem[]; projectTitle: string; tasks: ProjectTask[] }) {
+function LogPanel({ deleteLog, editingLogId, isSavingLog, logForm, logs, projectTitle, setLogForm, startEditLog, tasks, onCancel, onSubmit }: { deleteLog: (log: WorkLogItem) => Promise<void>; editingLogId: string | null; isSavingLog: boolean; logForm: WorkLogForm; logs: WorkLogItem[]; projectTitle: string; setLogForm: (form: WorkLogForm) => void; startEditLog: (log: WorkLogItem) => void; tasks: ProjectTask[]; onCancel: () => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void }) {
   const sortedLogs = [...logs].sort((a, b) => b.log_date.localeCompare(a.log_date));
-  if (sortedLogs.length === 0) return <section className="panel"><div className="empty-state">로그 없음</div></section>;
 
   return (
     <section className="log-dashboard">
+      <section className="panel log-form-panel">
+        <div className="panel-title-row"><h2>{editingLogId ? "로그 수정" : "로그 추가"}</h2>{editingLogId ? <button className="secondary-button" type="button" onClick={onCancel}>취소</button> : <span className="meta-pill">필수: 제목</span>}</div>
+        <form className="stacked-form compact-form" onSubmit={onSubmit}>
+          <div className="form-grid three-columns">
+            <label>유형<select value={logForm.work_type} onChange={(event) => setLogForm({ ...logForm, work_type: event.target.value as WorkType })}>{Object.entries(workTypeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+            <label>수행일<input type="date" value={logForm.log_date} onChange={(event) => setLogForm({ ...logForm, log_date: event.target.value })} /></label>
+            <label>소요(분)<input min="0" type="number" value={logForm.duration_minutes} onChange={(event) => setLogForm({ ...logForm, duration_minutes: event.target.value })} /></label>
+          </div>
+          <div className="form-grid two-columns">
+            <label>업무명<input placeholder="예: 주간 리포트 자동화" value={logForm.title} onChange={(event) => setLogForm({ ...logForm, title: event.target.value })} /></label>
+            <label>협업자<input placeholder="예: PM, 운영팀" value={logForm.collaborators} onChange={(event) => setLogForm({ ...logForm, collaborators: event.target.value })} /></label>
+          </div>
+          <div className="form-grid two-columns">
+            <label>수행 내용<textarea placeholder="실제로 한 일" value={logForm.content} onChange={(event) => setLogForm({ ...logForm, content: event.target.value })} /></label>
+            <label>결정 사항<textarea placeholder="판단/결정" value={logForm.decisions} onChange={(event) => setLogForm({ ...logForm, decisions: event.target.value })} /></label>
+          </div>
+          <div className="form-grid two-columns">
+            <label>다음 액션<textarea placeholder="다음에 할 일" value={logForm.next_actions} onChange={(event) => setLogForm({ ...logForm, next_actions: event.target.value })} /></label>
+            <label>블로커<textarea placeholder="막힌 점" value={logForm.blockers} onChange={(event) => setLogForm({ ...logForm, blockers: event.target.value })} /></label>
+          </div>
+          <div className="form-actions"><button type="submit" disabled={isSavingLog}>{isSavingLog ? "저장 중" : editingLogId ? "수정 저장" : "로그 추가"}</button></div>
+        </form>
+      </section>
+
       <section className="panel log-timeline-panel">
         <div className="panel-title-row"><h2>타임라인</h2><span className="count-badge">{sortedLogs.length}개</span></div>
+        {sortedLogs.length === 0 ? <div className="empty-state">로그 없음</div> : null}
         <div className="log-timeline">
           {sortedLogs.map((log) => (
             <article className="log-timeline-item" key={log.id}>
@@ -699,9 +822,11 @@ function LogPanel({ logs, projectTitle, tasks }: { logs: WorkLogItem[]; projectT
                     <div><dt>수행 내용</dt><dd>{log.content || "-"}</dd></div>
                     <div><dt>판단/결정</dt><dd>{log.decisions || "-"}</dd></div>
                     <div><dt>협의 대상</dt><dd>{log.collaborators || "-"}</dd></div>
-                    <div><dt>이슈</dt><dd>{log.blockers || "-"}</dd></div>
+                    <div><dt>다음 액션</dt><dd>{log.next_actions || "-"}</dd></div>
+                    <div><dt>블로커</dt><dd>{log.blockers || "-"}</dd></div>
                   </dl>
                 </details>
+                <div className="form-actions compact-actions"><button className="secondary-button" type="button" onClick={() => startEditLog(log)}>수정</button><button className="danger-button" type="button" onClick={() => void deleteLog(log)}>삭제</button></div>
               </div>
             </article>
           ))}
@@ -712,8 +837,8 @@ function LogPanel({ logs, projectTitle, tasks }: { logs: WorkLogItem[]; projectT
         <div className="panel-title-row"><h2>로그 표</h2><span className="count-badge">{sortedLogs.length}개</span></div>
         <div className="data-table-wrap">
           <table className="data-table dense-task-table">
-            <thead><tr><th>업무 유형</th><th>프로젝트</th><th>수행일</th><th>소요 시간</th><th>다음 액션</th><th>연결 업무</th></tr></thead>
-            <tbody>{sortedLogs.map((log) => <tr key={log.id}><td><span className="meta-pill status-navy">{workTypeLabels[log.work_type]}</span></td><td>{log.project_title || projectTitle}</td><td>{log.log_date}</td><td>{log.duration_minutes}분</td><td>{log.next_actions || "-"}</td><td>{linkedWorkTitle(log, tasks)}</td></tr>)}</tbody>
+            <thead><tr><th>업무 유형</th><th>프로젝트</th><th>수행일</th><th>소요 시간</th><th>결정</th><th>협업자</th><th>다음 액션</th><th>블로커</th><th>관리</th></tr></thead>
+            <tbody>{sortedLogs.map((log) => <tr key={log.id}><td><span className="meta-pill status-navy">{workTypeLabels[log.work_type]}</span></td><td>{log.project_title || projectTitle}</td><td>{log.log_date}</td><td>{log.duration_minutes}분</td><td className="truncate-cell">{log.decisions || "-"}</td><td>{log.collaborators || "-"}</td><td className="truncate-cell">{log.next_actions || "-"}</td><td className="truncate-cell">{log.blockers || "-"}</td><td><div className="table-actions"><button className="table-link-button" type="button" onClick={() => startEditLog(log)}>수정</button><button className="table-link-button danger-link" type="button" onClick={() => void deleteLog(log)}>삭제</button></div></td></tr>)}</tbody>
           </table>
         </div>
       </section>
