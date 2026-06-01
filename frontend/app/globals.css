@@ -13,8 +13,8 @@
   --danger: #b42318;
   --success: #15803d;
   --warning: #b7791f;
-  --focus-ring: 0 0 0 3px rgba(37, 99, 235, 0.18);
   --shadow-soft: 0 16px 44px rgba(15, 39, 66, 0.07);
+  --shadow-card: 0 10px 28px rgba(15, 39, 66, 0.08);
 }
 
 * {
@@ -75,6 +75,23 @@ textarea,
   font: inherit;
 }
 
+button,
+a,
+input,
+select,
+textarea {
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease, background 0.16s ease;
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent-blue) 28%, transparent);
+  outline-offset: 2px;
+}
+
 button:disabled {
   cursor: not-allowed;
   opacity: 0.65;
@@ -92,19 +109,11 @@ select {
   font: inherit;
 }
 
-input::placeholder,
-textarea::placeholder {
-  color: #8a9aab;
-}
-
-input:focus-visible,
-textarea:focus-visible,
-select:focus-visible,
-button:focus-visible,
-a:focus-visible {
-  outline: none;
+input:focus,
+textarea:focus,
+select:focus {
   border-color: var(--accent-blue);
-  box-shadow: var(--focus-ring);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent-blue) 12%, transparent);
 }
 
 textarea {
@@ -218,8 +227,19 @@ textarea {
   transform: translateY(-1px);
 }
 
+.primary-link:hover,
+.secondary-button:hover,
+.report-controls button:hover,
+.stacked-form button:hover,
+.form-actions button:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-card);
+}
+
 .secondary-button {
-  background: var(--accent-strong);
+  border: 1px solid var(--border);
+  background: #ffffff;
+  color: var(--accent);
 }
 
 .text-link {
@@ -285,6 +305,7 @@ textarea {
   color: var(--accent);
   padding: 4px 9px;
   font-size: 13px;
+  white-space: nowrap;
 }
 
 .danger-count {
@@ -305,6 +326,16 @@ textarea {
   gap: 16px;
   border-bottom: 1px solid var(--border);
   padding-bottom: 18px;
+}
+
+.section-kicker {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--accent-blue);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 .hero-actions,
@@ -344,6 +375,11 @@ textarea {
   padding: 16px;
 }
 
+.metric-card:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-card);
+}
+
 .metric-card span {
   display: block;
   color: var(--muted);
@@ -365,7 +401,7 @@ textarea {
   grid-template-areas:
     "progress status"
     "progress delayed"
-    "completed candidates";
+    "completed completed";
   gap: 16px;
   align-items: start;
 }
@@ -384,10 +420,6 @@ textarea {
 
 .completed-panel {
   grid-area: completed;
-}
-
-.candidate-panel {
-  grid-area: candidates;
 }
 
 .progress-chart-list,
@@ -413,6 +445,13 @@ textarea {
   color: inherit;
   padding: 10px 0;
   text-decoration: none;
+}
+
+.progress-row:hover {
+  background: color-mix(in srgb, var(--accent-soft) 42%, transparent);
+  margin-inline: -10px;
+  padding-inline: 10px;
+  border-radius: 12px;
 }
 
 .progress-row:last-child {
@@ -515,6 +554,9 @@ textarea {
 .data-table-wrap {
   overflow-x: auto;
   margin-top: 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: #ffffff;
 }
 
 .data-table {
@@ -541,6 +583,14 @@ textarea {
 
 .data-table td {
   color: #24364b;
+}
+
+.data-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.data-table tbody tr:hover td {
+  background: #f8fbff;
 }
 
 .candidate-card {
@@ -1374,9 +1424,14 @@ code {
 
 .project-management-grid {
   display: grid;
-  grid-template-columns: minmax(280px, 0.42fr) minmax(0, 1.58fr);
+  grid-template-columns: minmax(300px, 0.42fr) minmax(0, 1.58fr);
   gap: 16px;
   align-items: start;
+}
+
+.project-create-panel,
+.board-layout > .panel:first-child {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
 }
 
 .project-create-panel textarea {
@@ -1392,6 +1447,11 @@ code {
   grid-template-columns: minmax(320px, 0.9fr) repeat(2, minmax(260px, 0.7fr));
   gap: 16px;
   align-items: start;
+}
+
+.overview-dashboard > .panel,
+.dashboard-grid > .panel {
+  min-width: 0;
 }
 
 .project-settings-panel {
@@ -1410,7 +1470,7 @@ code {
 }
 
 .board-layout {
-  grid-template-columns: minmax(280px, 0.34fr) minmax(0, 1.66fr);
+  grid-template-columns: minmax(320px, 0.34fr) minmax(0, 1.66fr);
   align-items: start;
 }
 
